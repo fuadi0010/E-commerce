@@ -1,0 +1,17 @@
+package com.e_commerce.backend.feature_order.service;
+
+import com.e_commerce.backend.feature_order.dto.request.OrderRequest;
+import com.e_commerce.backend.feature_order.model.OrderEntity;
+import com.e_commerce.backend.feature_order.model.OrderStatus;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.UUID;
+
+public interface OrderService {
+    OrderEntity createOrder(UUID userId, OrderRequest request);
+    OrderEntity updateOrderStatus(UUID orderId, OrderStatus newStatus);
+    OrderEntity getOrderById(UUID orderId);
+    Page<OrderEntity> getOrdersByUser(UUID userId, Pageable pageable);
+}

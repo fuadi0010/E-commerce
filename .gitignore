@@ -1,0 +1,49 @@
+# ==========================================
+# 1. ROOT & MONOREPO SECRETS
+# ==========================================
+.env
+.env.*
+*.local
+secrets/
+keys/
+*.pem
+*.key
+
+# ==========================================
+# 2. IDE & EDITOR (CRITICAL)
+# ==========================================
+# Wajib diabaikan agar kredensial di launch.json tidak ter-push
+.vscode/
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# ==========================================
+# 3. ANTIGRAVITY / AI METADATA
+# ==========================================
+.agents/scratch/
+.antigravity/scratch/
+.antigravity
+.agents
+# ==========================================
+# 4. OS GENERATED
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
+logs/
+
+# ==========================================
+# 5. FRONTEND (Angular/React/Node)
+# ==========================================
+node_modules/
+dist/
+build/
+.npm/
+.angular/

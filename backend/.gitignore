@@ -1,0 +1,55 @@
+# ==========================================
+# 1. SECRETS & CREDENTIALS (CRITICAL)
+# ==========================================
+.env
+.env.*
+*.local
+secrets/
+keys/
+*.pem
+*.key
+application-dev.properties
+application-dev.yml
+application-prod.properties
+application-prod.yml
+application-local.properties
+application-local.yml
+
+# ==========================================
+# 2. IDE & EDITOR SETTINGS (Mencegah Kebocoran Password di launch.json)
+# ==========================================
+.vscode/
+.idea/
+*.iws
+*.iml
+*.ipr
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# ==========================================
+# 3. BACKEND (Spring Boot / Maven)
+# ==========================================
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+
+# ==========================================
+# 4. OS GENERATED & LOGS
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
+logs/
+.cache/
