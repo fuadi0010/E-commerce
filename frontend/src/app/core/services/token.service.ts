@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { UserInfo } from '../models/auth.model';
 
 @Injectable({
@@ -8,11 +8,15 @@ export class TokenService {
   private readonly ACCESS_TOKEN_KEY = 'access_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
 
+  // State reaktif untuk digunakan oleh komponen UI seperti Navbar
+  isAuth = signal<boolean>(this.isLoggedIn());
+
   constructor() {}
 
   saveTokens(accessToken: string, refreshToken: string): void {
     localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
     localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
+    this.isAuth.set(true);
   }
 
   getAccessToken(): string | null {
@@ -26,6 +30,7 @@ export class TokenService {
   clearTokens(): void {
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    this.isAuth.set(false);
   }
 
   isLoggedIn(): boolean {
