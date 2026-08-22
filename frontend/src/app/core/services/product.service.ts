@@ -33,14 +33,33 @@ export class ProductService {
     return this.http.get<ApiResponse<Product>>(`${this.baseUrl}/${slug}`);
   }
 
-  // Untuk filter kategori, ambil semua kategori publik
-  getCategories(): Observable<ApiResponse<Category[]>> {
-    // Kalau backend belum punya /categories/public, ini mungkin error. 
-    // Saya akan siapkan endpointnya jika belum ada di backend, atau sementara bypass.
-    // Tapi backend sudah memiliki CategoryController sebelumnya, semoga bisa diakses.
-    // Jika auth required, kita perlu mengubah backend. Tapi public = harus public.
-    return this.http.get<ApiResponse<Category[]>>(`${environment.apiUrl}/categories`); 
-    // Catatan: Jika GET /api/v1/categories butuh auth, maka frontend filter akan error saat belum login.
-    // Tapi kita bisa coba dulu.
+  // Admin methods
+  private adminUrl = `${environment.apiUrl}/products`;
+
+  getProducts(params?: any): Observable<ApiResponse<PageResponse<Product>>> {
+    let httpParams = new HttpParams();
+    if (params) {
+      if (params.page !== undefined) httpParams = httpParams.set('page', params.page);
+      if (params.size !== undefined) httpParams = httpParams.set('size', params.size);
+      if (params.search) httpParams = httpParams.set('search', params.search);
+      if (params.categoryId) httpParams = httpParams.set('categoryId', params.categoryId);
+    }
+    return this.http.get<ApiResponse<PageResponse<Product>>>(this.adminUrl, { params: httpParams });
+  }
+
+  getProductById(id: string): Observable<ApiResponse<Product>> {
+    return this.http.get<ApiResponse<Product>>(`${this.adminUrl}/${id}`);
+  }
+
+  createProduct(request: any): Observable<ApiResponse<Product>> {
+    return this.http.post<ApiResponse<Product>>(this.adminUrl, request);
+  }
+
+  updateProduct(id: string, request: any): Observable<ApiResponse<Product>> {
+    return this.http.put<ApiResponse<Product>>(`${this.adminUrl}/${id}`, request);
+  }
+
+  deleteProduct(id: string): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(`${this.adminUrl}/${id}`);
   }
 }

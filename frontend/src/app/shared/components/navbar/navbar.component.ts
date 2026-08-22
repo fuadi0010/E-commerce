@@ -23,7 +23,7 @@ import { CartService } from '../../../core/services/cart.service';
                 <a routerLink="/catalog" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition-colors">Catalog</a>
                 <a routerLink="/dashboard" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition-colors">Dashboard</a>
                 <a routerLink="/profile" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition-colors">Profile</a>
-                <!-- TODO: Navigasi Admin jika role === ADMIN -->
+                <a *ngIf="isAdmin" routerLink="/admin" class="px-3 py-2 rounded-md text-sm font-bold bg-indigo-800 text-white hover:bg-indigo-900 transition-colors">Admin Panel</a>
               </div>
             </div>
             <div class="hidden md:block" *ngIf="!tokenService.isAuth()">
@@ -77,6 +77,11 @@ export class NavbarComponent {
   get userEmail(): string {
     const user = this.tokenService.getUserInfo();
     return user ? user.email : '';
+  }
+
+  get isAdmin(): boolean {
+    const user = this.tokenService.getUserInfo();
+    return user ? user.roles.includes('ROLE_ADMIN') : false;
   }
 
   logout() {

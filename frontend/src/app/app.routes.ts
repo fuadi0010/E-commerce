@@ -7,9 +7,15 @@ import { DashboardLayoutComponent } from './shared/components/layout/dashboard-l
 import { DashboardComponent } from './features/dashboard/pages/dashboard/dashboard.component';
 import { ProfileComponent } from './features/profile/pages/profile/profile.component';
 import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/admin.guard';
 import { PublicLayoutComponent } from './shared/components/layout/public-layout.component';
 import { ProductCatalogComponent } from './features/catalog/pages/catalog/catalog.component';
 import { ProductDetailComponent } from './features/catalog/pages/product-detail/product-detail.component';
+import { AdminLayoutComponent } from './shared/components/layout/admin-layout/admin-layout.component';
+import { CategoryListComponent } from './features/admin/pages/category-list/category-list.component';
+import { CategoryCreateComponent } from './features/admin/pages/category-create/category-create.component';
+import { ProductListComponent } from './features/admin/pages/product-list/product-list.component';
+import { ProductFormComponent } from './features/admin/pages/product-form/product-form.component';
 
 export const routes: Routes = [
   // Public Storefront Routes
@@ -44,6 +50,22 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardComponent },
       { path: 'profile', component: ProfileComponent }
+    ]
+  },
+  
+  // Admin Routes
+  { 
+    path: 'admin', 
+    component: AdminLayoutComponent, 
+    canActivate: [adminGuard],
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard', component: DashboardComponent },
+      { path: 'categories', component: CategoryListComponent },
+      { path: 'categories/new', component: CategoryCreateComponent },
+      { path: 'products', component: ProductListComponent },
+      { path: 'products/new', component: ProductFormComponent },
+      { path: 'products/edit/:id', component: ProductFormComponent }
     ]
   },
   
