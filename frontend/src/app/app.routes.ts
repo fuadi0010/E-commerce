@@ -19,7 +19,13 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'catalog', pathMatch: 'full' },
       { path: 'catalog', component: ProductCatalogComponent },
-      { path: 'product/:slug', component: ProductDetailComponent }
+      { path: 'product/:slug', component: ProductDetailComponent },
+      { path: 'cart', loadComponent: () => import('./features/cart/pages/cart/cart.component').then(m => m.CartComponent) },
+      { 
+        path: 'checkout', 
+        loadComponent: () => import('./features/checkout/pages/checkout/checkout.component').then(m => m.CheckoutComponent),
+        canActivate: [authGuard]
+      }
     ]
   },
 

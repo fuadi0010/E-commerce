@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { ProductService } from '../../../../core/services/product.service';
 import { Product, Category, ProductSearchRequest, PageResponse } from '../../../../core/models/product.model';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { CartService } from '../../../../core/services/cart.service';
 
 @Component({
   selector: 'app-catalog',
@@ -98,7 +99,9 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
                   <p class="text-gray-500 text-sm mb-4 line-clamp-2 flex-grow">{{ product.description }}</p>
                   <div class="flex items-center justify-between mt-auto">
                     <span class="text-xl font-extrabold text-gray-900">\${{ product.price }}</span>
-                    <a [routerLink]="['/product', product.slug]" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-md transition-colors">View Details</a>
+                    <div class="flex space-x-2">
+                      <button (click)="addToCart(product)" [disabled]="product.stock === 0" class="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md transition-colors disabled:opacity-50">Add to Cart</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -136,6 +139,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 export class ProductCatalogComponent implements OnInit {
   private productService = inject(ProductService);
   private toastService = inject(ToastService);
+  private cartService = inject(CartService);
 
   products: Product[] = [];
   pageData: PageResponse<Product> | null = null;
@@ -190,5 +194,10 @@ export class ProductCatalogComponent implements OnInit {
       this.loadProducts();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  }
+
+  addToCart(product: Product) {
+    this.cartService.addToCart(product, 1);
+    this.toastService.success('Added to Cart', \`\${product.name} has been added to your cart.\`);
   }
 }
