@@ -123,7 +123,7 @@ export class ProductDetailComponent implements OnInit {
   addToCart() {
     if (this.product && this.product.stock > 0) {
       this.cartService.addToCart(this.product, 1);
-      this.toastService.success('Added to Cart', \`\${this.product.name} has been added to your cart.\`);
+      this.toastService.success('Added to Cart', `${this.product.name} has been added to your cart.`);
     }
   }
 }

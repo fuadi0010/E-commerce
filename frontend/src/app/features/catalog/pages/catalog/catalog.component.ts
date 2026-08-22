@@ -198,6 +198,6 @@ export class ProductCatalogComponent implements OnInit {
 
   addToCart(product: Product) {
     this.cartService.addToCart(product, 1);
-    this.toastService.success('Added to Cart', \`\${product.name} has been added to your cart.\`);
+    this.toastService.success('Added to Cart', `${product.name} has been added to your cart.`);
   }
 }
