@@ -29,22 +29,31 @@ public class JwtUtils {
     public String generateJwtToken(Authentication authentication) {
         // Mengambil data UserDetailsImpl yang sudah kita buat sebelumnya
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
+        java.util.List<String> roles = userPrincipal.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .collect(java.util.stream.Collectors.toList());
 
         return Jwts.builder()
-                .setSubject((userPrincipal.getUsername())) // Isi token dengan email user
+                .setSubject(userPrincipal.getUsername()) // Isi token dengan email user
+                .claim("roles", roles) // Menyertakan role user (misal: ROLE_ADMIN, ROLE_CUSTOMER)
                 .setIssuedAt(new Date()) // Waktu token dibuat
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs)) // Waktu kedaluwarsa
                 .signWith(key(), SignatureAlgorithm.HS256) // Stempel kriptografi (Tanda Tangan)
                 .compact();
     }
 
-    public String generateJwtTokenFromEmail(String email) {
+    public String generateJwtTokenFromEmail(String email, java.util.List<String> roles) {
         return Jwts.builder()
                 .setSubject(email)
+                .claim("roles", roles)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    public String generateJwtTokenFromEmail(String email) {
+        return generateJwtTokenFromEmail(email, java.util.Collections.emptyList());
     }
 
     // 2. Mengekstrak identitas (Email) dari Token
@@ -76,6 +85,10 @@ public class JwtUtils {
 
     // Mengubah String kunci rahasia menjadi objek Key kriptografi
     private Key key() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+        try {
+            return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+        } catch (Exception e) {
+            return Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
     }
 }

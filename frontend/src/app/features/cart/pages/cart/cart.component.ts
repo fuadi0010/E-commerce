@@ -8,126 +8,183 @@ import { CartService } from '../../../../core/services/cart.service';
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <h1 class="text-3xl font-extrabold text-gray-900 mb-8">Shopping Cart</h1>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      
+      <!-- Page Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200/80">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Keranjang Belanja</h1>
+          <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Kelola barang pilihan Anda sebelum melanjutkan ke pembayaran</p>
+        </div>
+        <span *ngIf="cartService.cartTotalCount() > 0" 
+          class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">
+          {{ cartService.cartTotalCount() }} Item
+        </span>
+      </div>
 
-      <div *ngIf="cartService.cartItems().length === 0" class="bg-white p-10 text-center rounded-lg shadow-sm border border-gray-100">
-        <svg class="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-        <h3 class="text-xl font-medium text-gray-900 mb-2">Your cart is empty</h3>
-        <p class="text-gray-500 mb-6">Looks like you haven't added anything to your cart yet.</p>
-        <a routerLink="/catalog" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
-          Start Shopping
+      <!-- Empty Cart State -->
+      <div *ngIf="cartService.cartItems().length === 0" 
+        class="bg-white p-12 sm:p-16 text-center rounded-3xl border border-slate-200/80 shadow-ambient max-w-lg mx-auto space-y-4">
+        <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-900">Keranjang Belanja Kosong</h3>
+          <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+            Anda belum menambahkan barang apapun ke keranjang belanja. Jelajahi koleksi kami sekarang!
+          </p>
+        </div>
+        <a routerLink="/catalog" 
+          class="inline-flex items-center gap-2 px-6 py-3 text-xs font-bold text-white bg-slate-900 hover:bg-indigo-600 rounded-xl transition-all btn-press">
+          <span>Mulai Belanja</span>
+          <span>&rarr;</span>
         </a>
       </div>
 
-      <div *ngIf="cartService.cartItems().length > 0" class="lg:grid lg:grid-cols-12 lg:gap-x-12 lg:items-start">
+      <!-- Cart Content Grid -->
+      <div *ngIf="cartService.cartItems().length > 0" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        <!-- Cart Items -->
-        <section aria-labelledby="cart-heading" class="lg:col-span-8">
-          <h2 id="cart-heading" class="sr-only">Items in your shopping cart</h2>
-
-          <ul role="list" class="border-t border-b border-gray-200 divide-y divide-gray-200">
-            <li *ngFor="let item of cartService.cartItems()" class="flex py-6 sm:py-10">
-              <div class="flex-shrink-0">
-                <div class="w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded-md flex items-center justify-center">
-                  <svg class="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-
-              <div class="ml-4 flex-1 flex flex-col justify-between sm:ml-6">
-                <div class="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
-                  <div>
-                    <div class="flex justify-between">
-                      <h3 class="text-sm">
-                        <a [routerLink]="['/product', item.product.slug]" class="font-medium text-gray-700 hover:text-gray-800">
-                          {{ item.product.name }}
-                        </a>
-                      </h3>
-                    </div>
-                    <div class="mt-1 flex text-sm">
-                      <p class="text-gray-500">{{ item.product.category?.name }}</p>
-                    </div>
-                    <p class="mt-1 text-sm font-medium text-gray-900">\${{ item.product.price }}</p>
-                  </div>
-
-                  <div class="mt-4 sm:mt-0 sm:pr-9">
-                    <label [for]="'quantity-' + item.product.id" class="sr-only">Quantity</label>
-                    <select [id]="'quantity-' + item.product.id" [name]="'quantity-' + item.product.id" 
-                      [value]="item.quantity" (change)="updateQuantity(item.product.id, $event)"
-                      class="max-w-full rounded-md border border-gray-300 py-1.5 text-base leading-5 font-medium text-gray-700 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                      <option *ngFor="let num of [1,2,3,4,5,6,7,8,9,10]" [value]="num">{{ num }}</option>
-                    </select>
-
-                    <div class="absolute top-0 right-0">
-                      <button type="button" (click)="removeItem(item.product.id)" class="-m-2 p-2 inline-flex text-gray-400 hover:text-gray-500">
-                        <span class="sr-only">Remove</span>
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
+        <!-- Cart Item List -->
+        <section class="lg:col-span-8 space-y-4">
+          <div class="bg-white rounded-3xl border border-slate-200/80 shadow-ambient overflow-hidden">
+            <ul role="list" class="divide-y divide-slate-100">
+              <li *ngFor="let item of cartService.cartItems()" class="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+                
+                <!-- Product Thumbnail -->
+                <div class="w-20 h-20 sm:w-24 sm:h-24 bg-slate-100/80 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200/50">
+                  <img *ngIf="item.product.imageUrl" [src]="item.product.imageUrl" [alt]="item.product.name" 
+                    class="w-full h-full object-cover">
+                  <div *ngIf="!item.product.imageUrl" class="text-slate-300">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
                   </div>
                 </div>
 
-                <p class="mt-4 flex text-sm text-gray-700 space-x-2">
-                  <svg class="flex-shrink-0 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                  <span>In stock</span>
-                </p>
-              </div>
-            </li>
-          </ul>
-        </section>
+                <!-- Product Information -->
+                <div class="flex-1 min-w-0 space-y-1">
+                  <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                    {{ item.product.category.name || 'Umum' }}
+                  </span>
+                  <h3 class="text-sm font-bold text-slate-900 leading-snug">
+                    <a [routerLink]="['/product', item.product.slug]" class="hover:text-indigo-600 transition-colors">
+                      {{ item.product.name }}
+                    </a>
+                  </h3>
+                  <p class="text-xs font-semibold text-slate-500">
+                    Harga Satuan: <span class="text-slate-900">Rp {{ item.product.price | number:'1.0-0' }}</span>
+                  </p>
+                </div>
 
-        <!-- Order Summary -->
-        <section aria-labelledby="summary-heading" class="mt-16 bg-gray-50 rounded-lg px-4 py-6 sm:p-6 lg:p-8 lg:mt-0 lg:col-span-4">
-          <h2 id="summary-heading" class="text-lg font-medium text-gray-900">Order summary</h2>
+                <!-- Stepper & Actions -->
+                <div class="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                  
+                  <!-- Stepper Controls -->
+                  <div class="inline-flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
+                    <button (click)="decreaseItemQty(item.product.id, item.quantity)"
+                      class="w-7 h-7 rounded-lg bg-white shadow-xs text-slate-700 font-bold hover:bg-slate-100 flex items-center justify-center transition-colors btn-press">
+                      -
+                    </button>
+                    <span class="w-9 text-center text-xs font-bold text-slate-900">{{ item.quantity }}</span>
+                    <button (click)="increaseItemQty(item.product.id, item.quantity, item.product.stock)" [disabled]="item.quantity >= item.product.stock"
+                      class="w-7 h-7 rounded-lg bg-white shadow-xs text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center transition-colors btn-press">
+                      +
+                    </button>
+                  </div>
 
-          <dl class="mt-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <dt class="text-sm text-gray-600">Subtotal</dt>
-              <dd class="text-sm font-medium text-gray-900">\${{ cartService.cartTotalPrice() }}</dd>
-            </div>
-            <div class="border-t border-gray-200 pt-4 flex items-center justify-between">
-              <dt class="flex items-center text-sm text-gray-600">
-                <span>Shipping estimate</span>
-              </dt>
-              <dd class="text-sm font-medium text-gray-900">Free</dd>
-            </div>
-            <div class="border-t border-gray-200 pt-4 flex items-center justify-between">
-              <dt class="flex text-sm text-gray-600">
-                <span>Tax estimate</span>
-              </dt>
-              <dd class="text-sm font-medium text-gray-900">Calculated at checkout</dd>
-            </div>
-            <div class="border-t border-gray-200 pt-4 flex items-center justify-between">
-              <dt class="text-base font-medium text-gray-900">Order total</dt>
-              <dd class="text-base font-medium text-gray-900">\${{ cartService.cartTotalPrice() }}</dd>
-            </div>
-          </dl>
+                  <!-- Subtotal Item -->
+                  <div class="text-right min-w-[90px]">
+                    <span class="text-xs font-black text-slate-900 block">
+                      Rp {{ (item.product.price * item.quantity) | number:'1.0-0' }}
+                    </span>
+                  </div>
 
-          <div class="mt-6">
-            <a routerLink="/checkout" class="w-full bg-indigo-600 border border-transparent rounded-md shadow-sm py-3 px-4 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 focus:ring-indigo-500 text-center block">
-              Checkout
-            </a>
+                  <!-- Remove Button -->
+                  <button type="button" (click)="removeItem(item.product.id)" 
+                    class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors btn-press"
+                    title="Hapus dari keranjang">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+
+                </div>
+
+              </li>
+            </ul>
           </div>
         </section>
+
+        <!-- Order Summary (Sticky) -->
+        <section class="lg:col-span-4">
+          <div class="bg-white rounded-3xl border border-slate-200/80 shadow-ambient p-6 sm:p-7 space-y-6 sticky top-24">
+            <h2 class="text-base font-bold text-slate-900">Ringkasan Pesanan</h2>
+
+            <div class="space-y-3 text-xs text-slate-600">
+              <div class="flex items-center justify-between">
+                <span>Subtotal Barang ({{ cartService.cartTotalCount() }} item)</span>
+                <span class="font-bold text-slate-900">Rp {{ cartService.cartTotalPrice() | number:'1.0-0' }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Biaya Pengiriman</span>
+                <span class="text-emerald-600 font-bold">Gratis Ongkir</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Pajak Transaksi (PPN)</span>
+                <span class="text-slate-400">Termasuk</span>
+              </div>
+              
+              <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-extrabold text-slate-900">
+                <span>Total Tagihan</span>
+                <span class="text-base font-black text-indigo-600">
+                  Rp {{ cartService.cartTotalPrice() | number:'1.0-0' }}
+                </span>
+              </div>
+            </div>
+
+            <div class="pt-2 space-y-3">
+              <a routerLink="/checkout" 
+                class="w-full py-3.5 px-4 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl text-xs font-bold text-center block transition-all shadow-sm btn-press">
+                Lanjut ke Checkout
+              </a>
+              <a routerLink="/catalog" 
+                class="w-full py-2.5 px-4 text-center text-xs font-semibold text-slate-500 hover:text-slate-800 block transition-colors">
+                &larr; Lanjut Pilih Produk Lain
+              </a>
+            </div>
+
+            <!-- Trust Badge -->
+            <div class="pt-4 border-t border-slate-100 flex items-center gap-3 text-[11px] text-slate-400">
+              <svg class="w-4 h-4 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+              <span>Jaminan transaksi aman dan terlindungi enkripsi.</span>
+            </div>
+          </div>
+        </section>
+
       </div>
+
     </div>
   `
 })
 export class CartComponent {
   public cartService = inject(CartService);
 
-  updateQuantity(productId: string, event: Event) {
-    const selectElement = event.target as HTMLSelectElement;
-    const quantity = parseInt(selectElement.value, 10);
-    this.cartService.updateQuantity(productId, quantity);
+  increaseItemQty(productId: string, currentQty: number, stock: number) {
+    if (currentQty < stock) {
+      this.cartService.updateQuantity(productId, currentQty + 1);
+    }
+  }
+
+  decreaseItemQty(productId: string, currentQty: number) {
+    if (currentQty > 1) {
+      this.cartService.updateQuantity(productId, currentQty - 1);
+    } else {
+      this.cartService.removeFromCart(productId);
+    }
   }
 
   removeItem(productId: string) {

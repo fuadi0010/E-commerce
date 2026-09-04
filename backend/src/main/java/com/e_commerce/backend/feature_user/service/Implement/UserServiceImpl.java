@@ -1,10 +1,10 @@
 package com.e_commerce.backend.feature_user.service.Implement;
 
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
 import com.e_commerce.backend.feature_user.Model.UserEntity;
 import com.e_commerce.backend.feature_user.Model.UserProfileEntity;
 import com.e_commerce.backend.feature_user.dto.UpdateProfileRequest;
@@ -30,7 +30,7 @@ public class UserServiceImpl implements UserService{
     private UserEntity getCurrentUser() {
         String email = getCurrentAuthenticatedEmail();
         return userRepository.findByEmailAndDeletedAtIsNull(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User tidak ditemukan di database."));
+                .orElseThrow(() -> new ResourceNotFoundException("User tidak ditemukan di database."));
     }
 
     @Override
@@ -40,7 +40,7 @@ public class UserServiceImpl implements UserService{
         
         // Asumsi relasi One-to-One. Jika menggunakan repository terpisah:
         UserProfileEntity profile = userProfileRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Profil tidak ditemukan"));
+                .orElseThrow(() -> new ResourceNotFoundException("Profil tidak ditemukan"));
 
         return mapToResponse(user, profile);
     }
@@ -53,11 +53,17 @@ public class UserServiceImpl implements UserService{
         // Gunakan Pessimistic Locking jika update profil sangat konkuren, 
         // tapi untuk e-commerce B2C, operasi standar sudah cukup.
         UserProfileEntity profile = userProfileRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Profil tidak ditemukan"));
+                .orElseThrow(() -> new ResourceNotFoundException("Profil tidak ditemukan"));
 
-        profile.setFullName(request.getFullName());
-        profile.setPhone(request.getPhone());
-        profile.setAddress(request.getAddress());
+        if (request.getFullName() != null && !request.getFullName().isBlank()) {
+            profile.setFullName(request.getFullName().trim());
+        }
+        if (request.getPhone() != null) {
+            profile.setPhone(request.getPhone().isBlank() ? null : request.getPhone().trim());
+        }
+        if (request.getAddress() != null) {
+            profile.setAddress(request.getAddress().isBlank() ? null : request.getAddress().trim());
+        }
         
         UserProfileEntity updatedProfile = userProfileRepository.save(profile);
 

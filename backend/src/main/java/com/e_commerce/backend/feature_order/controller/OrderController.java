@@ -3,90 +3,121 @@ package com.e_commerce.backend.feature_order.controller;
 import com.e_commerce.backend.common.dto.ApiResponse;
 import com.e_commerce.backend.feature_order.dto.request.OrderRequest;
 import com.e_commerce.backend.feature_order.dto.request.OrderStatusRequest;
-import com.e_commerce.backend.feature_order.dto.response.OrderItemResponse;
 import com.e_commerce.backend.feature_order.dto.response.OrderResponse;
+import com.e_commerce.backend.feature_order.mapper.OrderMapper;
 import com.e_commerce.backend.feature_order.model.OrderEntity;
+import com.e_commerce.backend.feature_order.model.OrderStatus;
 import com.e_commerce.backend.feature_order.service.OrderService;
-import com.e_commerce.backend.feature_product.dto.response.ProductResponse;
 import com.e_commerce.backend.security.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.util.List;
+import java.time.ZonedDateTime;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
-
+/**
+ * OrderController — Rule 7, 9, 22, 50
+ * Menyediakan CRUD lengkap: List, Detail, Create (checkout), Update Status (PATCH).
+ * Response menggunakan ApiResponse<T>.
+ * Mapping menggunakan OrderMapper (Rule 29).
+ */
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderMapper orderMapper;
 
+    // POST /api/orders/checkout — Customer & Admin
     @PostMapping("/checkout")
     @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
     public ResponseEntity<ApiResponse<OrderResponse>> checkout(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody OrderRequest request) {
-        
+
         OrderEntity order = orderService.createOrder(userDetails.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Checkout berhasil", mapToResponse(order)));
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Checkout berhasil",
+                        orderMapper.toResponse(order)));
     }
 
+    // GET /api/orders/my-orders — Customer & Admin (with optional status filter)
     @GetMapping("/my-orders")
     @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<Page<OrderResponse>>> getMyOrders(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(required = false) OrderStatus status,
             @PageableDefault(size = 10) Pageable pageable) {
-        
-        Page<OrderResponse> orders = orderService.getOrdersByUser(userDetails.getId(), pageable)
-                .map(this::mapToResponse);
-        
+
+        Page<OrderResponse> orders = orderService
+                .getOrdersByUserAndStatus(userDetails.getId(), status, pageable)
+                .map(orderMapper::toResponse);
+
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Riwayat Pesanan", orders));
     }
 
-    @PutMapping("/{id}/status")
+    // GET /api/orders/{id} — Customer (own) or Admin
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<OrderResponse>> getOrderById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        OrderEntity order = orderService.getOrderById(id);
+
+        // IDOR check: customer hanya bisa lihat ordernya sendiri
+        if (!userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            if (!order.getUser().getId().equals(userDetails.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error(HttpStatus.FORBIDDEN.value(),
+                                "Anda tidak memiliki akses ke pesanan ini", null));
+            }
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Detail Pesanan",
+                orderMapper.toResponse(order)));
+    }
+
+    // PATCH /api/orders/{id}/status — Admin only (Rule 9: PATCH untuk partial update)
+    @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<OrderResponse>> updateStatus(
             @PathVariable UUID id,
             @Valid @RequestBody OrderStatusRequest request) {
-        
+
         OrderEntity order = orderService.updateOrderStatus(id, request.getStatus());
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Status berhasil diubah", mapToResponse(order)));
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Status berhasil diubah",
+                orderMapper.toResponse(order)));
     }
 
-    private OrderResponse mapToResponse(OrderEntity entity) {
-        List<OrderItemResponse> items = entity.getItems().stream().map(item -> 
-            OrderItemResponse.builder()
-                .id(item.getId())
-                .product(ProductResponse.builder()
-                        .id(item.getProduct().getId())
-                        .name(item.getProduct().getName())
-                        .build()) // Simplified mapping for sub-object
-                .quantity(item.getQuantity())
-                .priceAtTime(item.getPriceAtTime())
-                .subTotal(item.getPriceAtTime().multiply(BigDecimal.valueOf(item.getQuantity())))
-                .build()
-        ).collect(Collectors.toList());
+    // GET /api/orders/admin — Admin only, semua order dengan filter
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<Page<OrderResponse>>> getAllOrders(
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime endDate,
+            @PageableDefault(size = 10) Pageable pageable) {
 
-        return OrderResponse.builder()
-                .id(entity.getId())
-                .userId(entity.getUser().getId())
-                .status(entity.getStatus().name())
-                .totalAmount(entity.getTotalAmount())
-                .createdAt(entity.getCreatedAt())
-                .items(items)
-                .build();
+        Page<OrderResponse> orders = orderService
+                .getAllOrdersWithFilters(status, startDate, endDate, pageable)
+                .map(orderMapper::toResponse);
+
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Semua Pesanan", orders));
     }
 }

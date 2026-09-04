@@ -36,8 +36,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.nio.charset.StandardCharsets;
 
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.e_commerce.backend.common.service.EmailService;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +53,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
-    private final JavaMailSender mailSender;
+    private final EmailService emailService;
 
     private static final long REFRESH_TOKEN_DURATION_MS = 86400000L; // 24 hours
     private static final long RESET_TOKEN_DURATION_MS = 1800000L; // 30 minutes
@@ -88,6 +87,9 @@ public class AuthServiceImpl implements AuthService {
         UserProfileEntity profile = new UserProfileEntity();
         profile.setUser(savedUser);
         profile.setFullName(request.getFullName());
+        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
+            profile.setPhone(request.getPhoneNumber());
+        }
         userProfileRepository.save(profile);
     }
 
@@ -124,7 +126,7 @@ public class AuthServiceImpl implements AuthService {
                 .collect(Collectors.toList());
 
         return AuthResponse.builder()
-                .token(jwt)
+                .accessToken(jwt)
                 .refreshToken(refreshToken)
                 .type("Bearer")
                 .email(userDetails.getUsername())
@@ -149,7 +151,10 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Refresh token sudah kedaluwarsa. Silakan login kembali.");
         }
 
-        String newJwt = jwtUtils.generateJwtTokenFromEmail(refreshTokenEntity.getUser().getEmail());
+        List<String> roles = refreshTokenEntity.getUser().getRoles().stream()
+                .map(com.e_commerce.backend.feature_user.Model.Role::getName)
+                .collect(Collectors.toList());
+        String newJwt = jwtUtils.generateJwtTokenFromEmail(refreshTokenEntity.getUser().getEmail(), roles);
         
         // Optional: Rotate refresh token
         String newRefreshToken = UUID.randomUUID().toString();
@@ -181,17 +186,7 @@ public class AuthServiceImpl implements AuthService {
 
             String resetLink = "http://localhost:4200/reset-password?token=" + token;
             
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(user.getEmail());
-            message.setSubject("Reset Password - E-Commerce App");
-            message.setText("Silakan klik link berikut untuk melakukan reset password Anda:\n\n" + resetLink + "\n\nLink ini akan kedaluwarsa dalam 30 menit.");
-            
-            try {
-                mailSender.send(message);
-                log.info("Email reset password berhasil dikirim ke {}", email);
-            } catch (Exception e) {
-                log.error("Gagal mengirim email reset password ke {}: {}", email, e.getMessage());
-            }
+            emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
         });
         // Kita tidak throw exception bila user tidak ditemukan, demi mencegah enumeration.
     }

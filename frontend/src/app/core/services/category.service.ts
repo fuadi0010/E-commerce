@@ -20,7 +20,19 @@ export class CategoryService {
     return this.http.get<ApiResponse<Category[]>>(this.apiUrl);
   }
 
+  getCategoryById(id: string): Observable<ApiResponse<Category>> {
+    return this.http.get<ApiResponse<Category>>(`${this.apiUrl}/${id}`);
+  }
+
   createCategory(request: CategoryRequest): Observable<ApiResponse<Category>> {
     return this.http.post<ApiResponse<Category>>(this.apiUrl, request);
+  }
+
+  updateCategory(id: string, request: CategoryRequest): Observable<ApiResponse<Category>> {
+    return this.http.put<ApiResponse<Category>>(`${this.apiUrl}/${id}`, request);
+  }
+
+  deleteCategory(id: string): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`);
   }
 }

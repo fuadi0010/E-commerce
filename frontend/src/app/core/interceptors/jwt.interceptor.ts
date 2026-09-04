@@ -27,18 +27,18 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      // Global Error Handling
+      // =============================
+      // 401 Unauthorized — coba refresh
+      // =============================
       if (error.status === 401 && !req.url.includes('/auth/login') && !req.url.includes('/auth/refresh')) {
-        // Coba refresh token
         if (!isRefreshing) {
           isRefreshing = true;
           const refreshToken = tokenService.getRefreshToken();
-          
+
           if (refreshToken) {
             return authService.refreshToken(refreshToken).pipe(
               switchMap((res) => {
                 isRefreshing = false;
-                // Ulangi request asli dengan token baru
                 const newToken = tokenService.getAccessToken();
                 const newReq = req.clone({
                   setHeaders: { Authorization: `Bearer ${newToken}` }
@@ -48,7 +48,7 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
               catchError((refreshError) => {
                 isRefreshing = false;
                 tokenService.clearTokens();
-                router.navigate(['/login']);
+                router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
                 toastService.error('Sesi Berakhir', 'Sesi Anda telah berakhir. Silakan login kembali.');
                 return throwError(() => refreshError);
               })
@@ -56,24 +56,56 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
           } else {
             isRefreshing = false;
             tokenService.clearTokens();
-            router.navigate(['/login']);
+            // Hindari redirect berulang jika sudah di halaman 401 atau login
+            if (!router.url.includes('/401') && !router.url.includes('/login')) {
+              router.navigate(['/401']);
+            }
+            return throwError(() => error);
           }
+        } else {
+          return throwError(() => error);
         }
-      } else {
-        // Tampilkan pesan error global jika bukan 401
+      }
+      // =============================
+      // 403 Forbidden — Rule 57
+      // =============================
+      else if (error.status === 403) {
+        if (!router.url.includes('/403')) {
+          router.navigate(['/403']);
+        }
+        return throwError(() => error);
+      }
+      // =============================
+      // 500 Server Error
+      // Tampilkan notifikasi non-intrusif (toast), jangan redirect paksa agar tidak terjadi infinite loop UX
+      // =============================
+      else if (error.status >= 500) {
+        const errorMessage = error.error?.message || 'Terjadi kesalahan pada server. Silakan coba beberapa saat lagi.';
+        toastService.error('Kesalahan Server', errorMessage);
+        return throwError(() => error);
+      }
+      else {
+        // Tampilkan pesan error global untuk error lainnya
         let errorMessage = 'Terjadi kesalahan sistem.';
-        if (error.error && error.error.message) {
+        if (error.error && error.error.errors && typeof error.error.errors === 'object') {
+          const detailErrors = Object.values(error.error.errors) as string[];
+          if (detailErrors.length > 0) {
+            errorMessage = detailErrors.join('. ');
+          } else if (error.error.message) {
+            errorMessage = error.error.message;
+          }
+        } else if (error.error && error.error.message) {
           errorMessage = error.error.message;
         } else if (error.message) {
           errorMessage = error.message;
         }
-        
-        // Hindari nampilin toast berlebihan jika request dari guard
-        if(!req.url.includes('/auth/refresh')) {
-           toastService.error('Error', errorMessage);
+
+        // Jangan tampilkan toast untuk endpoint yang sudah memiliki handler spesifik di component
+        if (!req.url.includes('/auth/refresh') && !req.url.includes('/auth/register')) {
+          toastService.error('Error', errorMessage);
         }
       }
-      
+
       return throwError(() => error);
     })
   );

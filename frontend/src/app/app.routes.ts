@@ -17,6 +17,12 @@ import { CategoryCreateComponent } from './features/admin/pages/category-create/
 import { ProductListComponent } from './features/admin/pages/product-list/product-list.component';
 import { ProductFormComponent } from './features/admin/pages/product-form/product-form.component';
 
+// Rule 57: Error page components
+import { NotFoundComponent } from './shared/components/error-pages/not-found/not-found.component';
+import { UnauthorizedComponent } from './shared/components/error-pages/unauthorized/unauthorized.component';
+import { ForbiddenComponent } from './shared/components/error-pages/forbidden/forbidden.component';
+import { ServerErrorComponent } from './shared/components/error-pages/server-error/server-error.component';
+
 export const routes: Routes = [
   // Public Storefront Routes
   {
@@ -26,9 +32,12 @@ export const routes: Routes = [
       { path: '', redirectTo: 'catalog', pathMatch: 'full' },
       { path: 'catalog', component: ProductCatalogComponent },
       { path: 'product/:slug', component: ProductDetailComponent },
-      { path: 'cart', loadComponent: () => import('./features/cart/pages/cart/cart.component').then(m => m.CartComponent) },
-      { 
-        path: 'checkout', 
+      {
+        path: 'cart',
+        loadComponent: () => import('./features/cart/pages/cart/cart.component').then(m => m.CartComponent)
+      },
+      {
+        path: 'checkout',
         loadComponent: () => import('./features/checkout/pages/checkout/checkout.component').then(m => m.CheckoutComponent),
         canActivate: [authGuard]
       }
@@ -40,8 +49,8 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
-  
-  // Protected Routes (Nested under Layout)
+
+  // Protected Routes (Nested under Layout) — Rule 45
   {
     path: '',
     component: DashboardLayoutComponent,
@@ -52,11 +61,11 @@ export const routes: Routes = [
       { path: 'profile', component: ProfileComponent }
     ]
   },
-  
-  // Admin Routes
-  { 
-    path: 'admin', 
-    component: AdminLayoutComponent, 
+
+  // Admin Routes — Rule 45
+  {
+    path: 'admin',
+    component: AdminLayoutComponent,
     canActivate: [adminGuard],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -68,7 +77,12 @@ export const routes: Routes = [
       { path: 'products/edit/:id', component: ProductFormComponent }
     ]
   },
-  
-  // Fallback Route
-  { path: '**', redirectTo: 'dashboard' }
+
+  // Rule 57: Error Pages
+  { path: '401', component: UnauthorizedComponent },
+  { path: '403', component: ForbiddenComponent },
+  { path: '500', component: ServerErrorComponent },
+
+  // Rule 57: 404 wildcard — harus paling bawah
+  { path: '**', component: NotFoundComponent }
 ];

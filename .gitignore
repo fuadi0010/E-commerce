@@ -1,33 +1,107 @@
 # ==========================================
-# 1. ROOT & MONOREPO SECRETS
+# 1. SECRETS, CREDENTIALS & ENV CONFIGURATION (CRITICAL)
 # ==========================================
 .env
 .env.*
+*.env
 *.local
 secrets/
 keys/
 *.pem
 *.key
+*.pkcs12
+*.p12
+*.pfx
+*.jks
+*.cer
+*.crt
+*.der
+id_rsa*
+id_ed25519*
+.npmrc
+
+# Spring Boot Configuration & Secrets
+**/application.properties
+**/application.yml
+**/application.yaml
+**/application-*.properties
+**/application-*.yml
+**/application-*.yaml
+!**/application.properties.example
+!**/application.yml.example
+!**/application.yaml.example
 
 # ==========================================
-# 2. IDE & EDITOR (CRITICAL)
+# 2. BACKEND & BUILD ARTIFACTS (Maven / Java)
 # ==========================================
-# Wajib diabaikan agar kredensial di launch.json tidak ter-push
+target/
+**/target/
+*.class
+**/*.class
+*.jar
+*.war
+*.ear
+!**/wrapper/maven-wrapper.jar
+.apt_generated/
+**/.apt_generated*/
+.factorypath
+**/.factorypath
+*.dump
+*.dumpstream
+
+# ==========================================
+# 3. FRONTEND & NODE / ANGULAR ARTIFACTS
+# ==========================================
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+.npm/
+.angular/
+**/.angular/
+out-tsc/
+bazel-out/
+.sass-cache/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==========================================
+# 4. RUNTIME STORAGE & UPLOADS
+# ==========================================
+uploads/
+**/uploads/
+logs/
+**/logs/
+*.log
+
+# ==========================================
+# 5. IDE & EDITOR CONFIGURATIONS (CRITICAL)
+# ==========================================
+# Mencegah kebocoran kredensial di launch.json / workspace
 .vscode/
+**/.vscode/
 .idea/
+**/.idea/
 *.iws
 *.iml
 *.ipr
+.classpath
+**/.classpath
+.project
+**/.project
+.settings/
+**/.settings/
+.springBeans
+.sts4-cache
+*.sublime-project
+*.sublime-workspace
 
 # ==========================================
-# 3. ANTIGRAVITY / AI METADATA
-# ==========================================
-.agents/scratch/
-.antigravity/scratch/
-.antigravity
-.agents
-# ==========================================
-# 4. OS GENERATED
+# 6. OPERATING SYSTEM & TEMPORARY FILES
 # ==========================================
 .DS_Store
 .DS_Store?
@@ -36,14 +110,16 @@ keys/
 .Trashes
 ehthumbs.db
 Thumbs.db
-*.log
-logs/
+[Dd]esktop.ini
+*.tmp
+tmp/
+temp/
 
 # ==========================================
-# 5. FRONTEND (Angular/React/Node)
+# 7. AI AGENT SCRATCH
 # ==========================================
-node_modules/
-dist/
-build/
-.npm/
-.angular/
+.agents/scratch/
+.antigravity/
+.agents/
+rules.md
+skills-lock.json

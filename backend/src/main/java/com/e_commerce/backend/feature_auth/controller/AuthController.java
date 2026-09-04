@@ -41,7 +41,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(null, "Logout berhasil"));
     }
 
-    @PostMapping("/refresh-token")
+    @PostMapping({"/refresh-token", "/refresh"})
     public ResponseEntity<ApiResponse<com.e_commerce.backend.feature_auth.dto.response.TokenRefreshResponse>> refreshToken(
             @Valid @RequestBody com.e_commerce.backend.feature_auth.dto.request.TokenRefreshRequest request) {
         com.e_commerce.backend.feature_auth.dto.response.TokenRefreshResponse response = authService.refreshToken(request.getRefreshToken());

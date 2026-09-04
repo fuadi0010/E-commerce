@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -59,4 +60,12 @@ public class ProductEntity extends BaseEntity {
 
     @Column(name = "deleted_at")
     private ZonedDateTime deletedAt;
+
+    /**
+     * Rule 24: @Version untuk optimistic locking pada field yang mengubah shared state.
+     * Mencegah lost update pada stok saat concurrent request.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
 }

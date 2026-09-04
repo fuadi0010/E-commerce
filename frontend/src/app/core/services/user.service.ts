@@ -15,10 +15,10 @@ export class UserService {
   constructor() {}
 
   getProfile(): Observable<ApiResponse<UserProfile>> {
-    return this.http.get<ApiResponse<UserProfile>>(`${this.baseUrl}/profile`);
+    return this.http.get<ApiResponse<UserProfile>>(`${this.baseUrl}/me`);
   }
 
   updateProfile(data: UpdateProfileRequest): Observable<ApiResponse<UserProfile>> {
-    return this.http.put<ApiResponse<UserProfile>>(`${this.baseUrl}/profile`, data);
+    return this.http.patch<ApiResponse<UserProfile>>(`${this.baseUrl}/me`, data);
   }
 }

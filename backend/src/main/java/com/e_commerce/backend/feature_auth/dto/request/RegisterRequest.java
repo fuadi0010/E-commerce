@@ -22,4 +22,6 @@ public class RegisterRequest {
 
     @NotBlank(message = "Nama lengkap tidak boleh kosong")
     private String fullName;
+
+    private String phoneNumber;
 }

@@ -12,7 +12,7 @@ spring.jackson.time-zone=UTC
 # ==========================================
 spring.datasource.url=jdbc:postgresql://localhost:5432/ecommerce_db
 # Asumsi: Anda menggunakan environment variables di server asli, jangan hardcode di Git!
-spring.datasource.username=${DB_USERNAME:postgres}
+spring.datasource.username=${DB_USERNAME:yourdbname}
 spring.datasource.password=${DB_PASSWORD:secret}
 spring.datasource.driver-class-name=org.postgresql.Driver
 
@@ -37,6 +37,8 @@ spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.show-sql=false
 spring.jpa.properties.hibernate.format_sql=false
 spring.jpa.open-in-view=false
+# Rule 18 & Performance: Selesaikan masalah N+1 pada lazy loading (collections & proxies) secara batch
+spring.jpa.properties.hibernate.default_batch_fetch_size=100
 
 # ==========================================
 # 5. MULTIPART / FILE UPLOAD (Syarat Dokumen)
@@ -57,6 +59,12 @@ app.jwt.expirationMs=3600000
 # ==========================================
 # 7. EMAIL CONFIGURATION (Mailtrap)
 # ==========================================
+# Mailtrap Java SDK / API Configuration
+mailtrap.token=${MAILTRAP_API_TOKEN:your_mailtrap_api_token}
+mailtrap.from.email=${MAILTRAP_FROM_EMAIL:hello@demomailtrap.co}
+mailtrap.from.name=${MAILTRAP_FROM_NAME:E-Commerce App}
+
+# Spring Mail (SMTP Fallback/Legacy)
 spring.mail.host=${MAIL_HOST:sandbox.smtp.mailtrap.io}
 spring.mail.port=${MAIL_PORT:2525}
 spring.mail.username=${MAIL_USERNAME:your_mailtrap_username}
@@ -64,3 +72,5 @@ spring.mail.password=${MAIL_PASSWORD:your_mailtrap_password}
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
 spring.mail.properties.mail.smtp.starttls.required=true
+spring.mail.properties.mail.smtp.from=${MAIL_FROM:no-reply@ecommerce.com}
+spring.mail.default-encoding=UTF-8

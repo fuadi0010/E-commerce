@@ -1,5 +1,7 @@
 package com.e_commerce.backend.feature_order.service.impl;
 
+import com.e_commerce.backend.exception.custom.InsufficientStockException;
+import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
 import com.e_commerce.backend.feature_order.dto.request.OrderRequest;
 import com.e_commerce.backend.feature_order.model.OrderEntity;
 import com.e_commerce.backend.feature_order.model.OrderStatus;
@@ -10,6 +12,7 @@ import com.e_commerce.backend.feature_product.repository.ProductRepository;
 import com.e_commerce.backend.feature_user.Model.UserEntity;
 import com.e_commerce.backend.feature_user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,20 +29,18 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit Tests untuk OrderServiceImpl.
+ * Rule 72: Test business logic, validation, exception handling, concurrency logic.
+ */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("OrderServiceImpl Tests")
 class OrderServiceImplTest {
 
-    @Mock
-    private OrderRepository orderRepository;
-
-    @Mock
-    private OrderItemRepository orderItemRepository;
-
-    @Mock
-    private ProductRepository productRepository;
-
-    @Mock
-    private UserRepository userRepository;
+    @Mock private OrderRepository orderRepository;
+    @Mock private OrderItemRepository orderItemRepository;
+    @Mock private ProductRepository productRepository;
+    @Mock private UserRepository userRepository;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -60,106 +61,191 @@ class OrderServiceImplTest {
 
         mockProduct = new ProductEntity();
         mockProduct.setId(productId);
-        mockProduct.setName("Laptop Gaming");
+        mockProduct.setName("Laptop Gaming Asus ROG");
         mockProduct.setPrice(new BigDecimal("15000000.00"));
         mockProduct.setStock(10);
     }
 
+    // ===========================
+    // createOrder — Happy Path
+    // ===========================
     @Test
+    @DisplayName("createOrder: Berhasil membuat order dan mengurangi stok")
     void createOrder_Success() {
-        // Arrange
         OrderRequest.OrderItemRequest itemReq = new OrderRequest.OrderItemRequest(productId, 2);
         OrderRequest request = new OrderRequest(List.of(itemReq));
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
-        when(productRepository.findByIdAndDeletedAtIsNull(productId)).thenReturn(Optional.of(mockProduct));
-        
-        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+        when(productRepository.findByIdWithPessimisticLock(productId)).thenReturn(Optional.of(mockProduct));
+        when(orderRepository.save(any(OrderEntity.class)))
+                .thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
 
-        // Act
         OrderEntity result = orderService.createOrder(userId, request);
 
-        // Assert
         assertNotNull(result);
         assertEquals(OrderStatus.PENDING, result.getStatus());
         assertEquals(new BigDecimal("30000000.00"), result.getTotalAmount()); // 15jt x 2
 
-        // Verify stok berkurang
+        // Verify stok berkurang dari 10 → 8
         assertEquals(8, mockProduct.getStock());
-        
-        // Verify method calls
+
         verify(userRepository, times(1)).findById(userId);
-        verify(productRepository, times(1)).findByIdAndDeletedAtIsNull(productId);
+        verify(productRepository, times(1)).findByIdWithPessimisticLock(productId);
         verify(productRepository, times(1)).save(mockProduct);
         verify(orderItemRepository, times(1)).save(any());
-        verify(orderRepository, times(2)).save(any(OrderEntity.class)); // 1 untuk draft, 1 untuk update total
+        verify(orderRepository, times(2)).save(any(OrderEntity.class));
     }
 
+    // ===========================
+    // createOrder — Validation
+    // ===========================
     @Test
-    void createOrder_UserNotFound_ThrowsException() {
-        // Arrange
-        OrderRequest request = new OrderRequest(List.of(new OrderRequest.OrderItemRequest(productId, 1)));
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+    @DisplayName("createOrder: Order kosong → IllegalArgumentException")
+    void createOrder_EmptyItems_ThrowsIllegalArgumentException() {
+        OrderRequest request = new OrderRequest(new ArrayList<>());
+        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
 
-        // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> 
-            orderService.createOrder(userId, request)
-        );
-        assertEquals("User tidak ditemukan", exception.getMessage());
-        
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> orderService.createOrder(userId, request));
+        assertEquals("Pesanan tidak boleh kosong", ex.getMessage());
+
         verify(orderRepository, never()).save(any());
     }
 
+    // ===========================
+    // createOrder — User Not Found
+    // ===========================
     @Test
-    void createOrder_EmptyItems_ThrowsIllegalArgumentException() {
-        // Arrange
-        OrderRequest request = new OrderRequest(new ArrayList<>()); // Empty list
-        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
+    @DisplayName("createOrder: User tidak ditemukan → ResourceNotFoundException")
+    void createOrder_UserNotFound_ThrowsResourceNotFoundException() {
+        OrderRequest request = new OrderRequest(List.of(new OrderRequest.OrderItemRequest(productId, 1)));
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> 
-            orderService.createOrder(userId, request)
-        );
-        assertEquals("Pesanan tidak boleh kosong", exception.getMessage());
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> orderService.createOrder(userId, request));
+        assertEquals("User tidak ditemukan", ex.getMessage());
+
+        verify(orderRepository, never()).save(any());
     }
 
+    // ===========================
+    // createOrder — Product Not Found
+    // ===========================
     @Test
-    void createOrder_ProductNotFound_ThrowsException() {
-        // Arrange
+    @DisplayName("createOrder: Produk tidak ditemukan → ResourceNotFoundException")
+    void createOrder_ProductNotFound_ThrowsResourceNotFoundException() {
         OrderRequest.OrderItemRequest itemReq = new OrderRequest.OrderItemRequest(productId, 1);
         OrderRequest request = new OrderRequest(List.of(itemReq));
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
-        OrderEntity savedDraftOrder = new OrderEntity();
-        when(orderRepository.save(any(OrderEntity.class))).thenReturn(savedDraftOrder);
-        when(productRepository.findByIdAndDeletedAtIsNull(productId)).thenReturn(Optional.empty());
+        when(orderRepository.save(any(OrderEntity.class))).thenReturn(new OrderEntity());
+        when(productRepository.findByIdWithPessimisticLock(productId)).thenReturn(Optional.empty());
 
-        // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> 
-            orderService.createOrder(userId, request)
-        );
-        assertTrue(exception.getMessage().contains("Produk tidak ditemukan atau tidak aktif"));
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> orderService.createOrder(userId, request));
+        assertTrue(ex.getMessage().contains("Produk tidak ditemukan atau tidak aktif"));
     }
 
+    // ===========================
+    // createOrder — InsufficientStock (Rule 8)
+    // ===========================
     @Test
-    void createOrder_InsufficientStock_ThrowsIllegalArgumentException() {
-        // Arrange
-        OrderRequest.OrderItemRequest itemReq = new OrderRequest.OrderItemRequest(productId, 20); // Minta 20, stok cuma 10
+    @DisplayName("createOrder: Stok tidak cukup → InsufficientStockException (Rule 8)")
+    void createOrder_InsufficientStock_ThrowsInsufficientStockException() {
+        // Minta 20, stok hanya 10
+        OrderRequest.OrderItemRequest itemReq = new OrderRequest.OrderItemRequest(productId, 20);
         OrderRequest request = new OrderRequest(List.of(itemReq));
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
-        OrderEntity savedDraftOrder = new OrderEntity();
-        when(orderRepository.save(any(OrderEntity.class))).thenReturn(savedDraftOrder);
-        when(productRepository.findByIdAndDeletedAtIsNull(productId)).thenReturn(Optional.of(mockProduct));
+        when(orderRepository.save(any(OrderEntity.class))).thenReturn(new OrderEntity());
+        when(productRepository.findByIdWithPessimisticLock(productId)).thenReturn(Optional.of(mockProduct));
 
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> 
-            orderService.createOrder(userId, request)
-        );
-        assertTrue(exception.getMessage().contains("Stok tidak mencukupi"));
-        
-        // Memastikan tidak ada transaksi penyimpanan order item atau pengubahan produk yang terjadi
+        InsufficientStockException ex = assertThrows(InsufficientStockException.class,
+                () -> orderService.createOrder(userId, request));
+        assertTrue(ex.getMessage().contains("Laptop Gaming Asus ROG"));
+        assertTrue(ex.getMessage().contains("20"));
+        assertTrue(ex.getMessage().contains("10"));
+
+        // Stok TIDAK boleh berubah saat exception
+        assertEquals(10, mockProduct.getStock());
         verify(productRepository, never()).save(any(ProductEntity.class));
         verify(orderItemRepository, never()).save(any());
+    }
+
+    // ===========================
+    // updateOrderStatus
+    // ===========================
+    @Test
+    @DisplayName("updateOrderStatus: Berhasil mengubah status order")
+    void updateOrderStatus_Success() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.PENDING);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(OrderEntity.class)))
+                .thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        OrderEntity result = orderService.updateOrderStatus(orderId, OrderStatus.PAID);
+
+        assertEquals(OrderStatus.PAID, result.getStatus());
+        verify(orderRepository, times(1)).save(order);
+    }
+
+    // ===========================
+    // getOrderById
+    // ===========================
+    @Test
+    @DisplayName("getOrderById: Order tidak ditemukan → ResourceNotFoundException")
+    void getOrderById_NotFound_ThrowsResourceNotFoundException() {
+        UUID unknownId = UUID.randomUUID();
+        when(orderRepository.findById(unknownId)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> orderService.getOrderById(unknownId));
+        assertTrue(ex.getMessage().contains(unknownId.toString()));
+    }
+
+    // ===========================
+    // createOrder — Concurrency / Deadlock Prevention
+    // ===========================
+    @Test
+    @DisplayName("createOrder: Item diurutkan berdasarkan productId untuk mencegah deadlock")
+    void createOrder_SortsItemsByProductId_PreventsDeadlock() {
+        UUID productId1 = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID productId2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+        ProductEntity product1 = new ProductEntity();
+        product1.setId(productId1);
+        product1.setName("Product 1");
+        product1.setPrice(new BigDecimal("10000.00"));
+        product1.setStock(5);
+
+        ProductEntity product2 = new ProductEntity();
+        product2.setId(productId2);
+        product2.setName("Product 2");
+        product2.setPrice(new BigDecimal("20000.00"));
+        product2.setStock(5);
+
+        // Berikan request dengan urutan terbalik (product2 dulu baru product1)
+        OrderRequest.OrderItemRequest item2 = new OrderRequest.OrderItemRequest(productId2, 1);
+        OrderRequest.OrderItemRequest item1 = new OrderRequest.OrderItemRequest(productId1, 1);
+        OrderRequest request = new OrderRequest(List.of(item2, item1));
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+        when(productRepository.findByIdWithPessimisticLock(productId1)).thenReturn(Optional.of(product1));
+        when(productRepository.findByIdWithPessimisticLock(productId2)).thenReturn(Optional.of(product2));
+
+        OrderEntity result = orderService.createOrder(userId, request);
+
+        assertNotNull(result);
+        assertEquals(new BigDecimal("30000.00"), result.getTotalAmount());
+
+        // Verifikasi bahwa findByIdWithPessimisticLock dipanggil dengan urutan productId1 DULU baru productId2
+        org.mockito.InOrder inOrder = inOrder(productRepository);
+        inOrder.verify(productRepository).findByIdWithPessimisticLock(productId1);
+        inOrder.verify(productRepository).findByIdWithPessimisticLock(productId2);
     }
 }

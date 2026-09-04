@@ -33,7 +33,8 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Rule 31: BCrypt strength WAJIB >= 12
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean
@@ -51,8 +52,8 @@ public class SecurityConfig {
                 auth.requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                     .requestMatchers("/uploads/**").permitAll()
-                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**").permitAll()
-                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
                     .anyRequest().authenticated()
             );
 

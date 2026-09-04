@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { CartService } from '../../../../core/services/cart.service';
 import { OrderService } from '../../../../core/services/order.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -9,96 +10,154 @@ import { OrderRequest } from '../../../../core/models/order.model';
 @Component({
   selector: 'app-checkout',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   template: `
-    <div class="bg-gray-50 min-h-screen pt-10 pb-24">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="max-w-2xl mx-auto lg:max-w-none">
-          <h1 class="sr-only">Checkout</h1>
-
-          <form class="lg:grid lg:grid-cols-2 lg:gap-x-12 xl:gap-x-16" (ngSubmit)="onSubmit($event)">
-            <div>
-              <div class="mt-10 pt-10 border-t border-gray-200">
-                <h2 class="text-lg font-medium text-gray-900">Payment & Confirmation</h2>
-                <p class="mt-2 text-sm text-gray-500">
-                  By clicking "Confirm Order", you agree to our Terms and Conditions. Please review your order details before proceeding.
-                </p>
-                <div class="mt-6 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                  <p class="text-sm text-gray-700">Currently, payment is simulated and cash-on-delivery or dummy gateways are assumed for this project.</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Order summary -->
-            <div class="mt-10 lg:mt-0">
-              <h2 class="text-lg font-medium text-gray-900">Order summary</h2>
-
-              <div class="mt-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-                <h3 class="sr-only">Items in your cart</h3>
-                <ul role="list" class="divide-y divide-gray-200">
-                  <li *ngFor="let item of cartService.cartItems()" class="flex py-6 px-4 sm:px-6">
-                    <div class="flex-shrink-0">
-                      <div class="w-20 h-20 bg-gray-100 rounded-md flex items-center justify-center">
-                        <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    </div>
-
-                    <div class="ml-6 flex-1 flex flex-col">
-                      <div class="flex">
-                        <div class="min-w-0 flex-1">
-                          <h4 class="text-sm">
-                            <a [routerLink]="['/product', item.product.slug]" class="font-medium text-gray-700 hover:text-gray-800">
-                              {{ item.product.name }}
-                            </a>
-                          </h4>
-                          <p class="mt-1 text-sm text-gray-500">{{ item.product.category?.name }}</p>
-                        </div>
-
-                        <div class="ml-4 flex-shrink-0 flow-root">
-                          <p class="text-sm font-medium text-gray-900">\${{ item.product.price }}</p>
-                        </div>
-                      </div>
-
-                      <div class="flex-1 pt-2 flex items-end justify-between">
-                        <p class="text-sm text-gray-500">Qty {{ item.quantity }}</p>
-                        <div class="flex">
-                          <button type="button" (click)="removeItem(item.product.id)" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                </ul>
-
-                <dl class="border-t border-gray-200 py-6 px-4 space-y-6 sm:px-6">
-                  <div class="flex items-center justify-between">
-                    <dt class="text-sm">Subtotal</dt>
-                    <dd class="text-sm font-medium text-gray-900">\${{ cartService.cartTotalPrice() }}</dd>
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <dt class="text-sm">Shipping</dt>
-                    <dd class="text-sm font-medium text-gray-900">Free</dd>
-                  </div>
-                  <div class="flex items-center justify-between border-t border-gray-200 pt-6">
-                    <dt class="text-base font-medium">Total</dt>
-                    <dd class="text-base font-medium text-gray-900">\${{ cartService.cartTotalPrice() }}</dd>
-                  </div>
-                </dl>
-
-                <div class="border-t border-gray-200 py-6 px-4 sm:px-6">
-                  <button type="submit" [disabled]="isSubmitting || cartService.cartItems().length === 0"
-                    class="w-full bg-indigo-600 border border-transparent rounded-md shadow-sm py-3 px-4 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 focus:ring-indigo-500 disabled:opacity-50">
-                    {{ isSubmitting ? 'Processing...' : 'Confirm Order' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </form>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      
+      <!-- Checkout Stepper Bar -->
+      <div class="max-w-xl mx-auto pb-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">&check;</span>
+            <span class="text-xs font-semibold text-slate-700">Keranjang</span>
+          </div>
+          <div class="flex-1 h-0.5 bg-slate-200 mx-4"></div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">2</span>
+            <span class="text-xs font-bold text-slate-900">Pembayaran</span>
+          </div>
+          <div class="flex-1 h-0.5 bg-slate-200 mx-4"></div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-400 text-xs font-bold flex items-center justify-center">3</span>
+            <span class="text-xs font-semibold text-slate-400">Selesai</span>
+          </div>
         </div>
       </div>
+
+      <!-- Main Checkout Grid -->
+      <form (ngSubmit)="onSubmit($event)" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Left: Delivery & Payment Details -->
+        <div class="lg:col-span-7 space-y-6">
+          
+          <!-- Shipping Address Summary Box -->
+          <div class="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-ambient space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Alamat Pengiriman
+              </h2>
+              <span class="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Akun Terdaftar</span>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed">
+              Pesanan akan dikirimkan sesuai data profil dan kontak Anda. Pastikan nomor telepon Anda selalu aktif untuk koordinasi kurir.
+            </p>
+          </div>
+
+          <!-- Payment Method Selection -->
+          <div class="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-ambient space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                </svg>
+                Pilihan Metode Pembayaran
+              </h2>
+            </div>
+
+            <div class="space-y-3">
+              <!-- Method 1: Instant QRIS -->
+              <label class="flex items-start gap-3 p-3.5 rounded-2xl border border-indigo-200 bg-indigo-50/40 cursor-pointer">
+                <input type="radio" name="paymentMethod" value="QRIS" checked class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+                <div class="text-xs">
+                  <span class="font-bold text-slate-900 block">QRIS / Instant Payment (Simulasi Otomatis)</span>
+                  <span class="text-slate-500">Verifikasi instan otomatis tanpa biaya admin tambahan.</span>
+                </div>
+              </label>
+
+              <!-- Method 2: Virtual Account -->
+              <label class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                <input type="radio" name="paymentMethod" value="VA" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+                <div class="text-xs">
+                  <span class="font-bold text-slate-900 block">Transfer Virtual Account (BCA / Mandiri / BRI / BNI)</span>
+                  <span class="text-slate-500">Nomor rekening unik akan disediakan setelah checkout.</span>
+                </div>
+              </label>
+            </div>
+
+            <div class="pt-2 text-[11px] text-slate-400">
+              * Mode simulasi transaksi diaktifkan untuk demo lingkungan development ini.
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Order Review & Total -->
+        <div class="lg:col-span-5 space-y-6">
+          <div class="bg-white rounded-3xl border border-slate-200/80 shadow-ambient p-6 sm:p-7 space-y-6 sticky top-24">
+            <h2 class="text-base font-bold text-slate-900">Detail Pesanan</h2>
+
+            <!-- Compact Item List -->
+            <div class="max-h-60 overflow-y-auto space-y-3 pr-1 divide-y divide-slate-100">
+              <div *ngFor="let item of cartService.cartItems()" class="pt-3 first:pt-0 flex items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-12 h-12 rounded-xl bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-200/60 flex items-center justify-center">
+                    <img *ngIf="item.product.imageUrl" [src]="item.product.imageUrl" [alt]="item.product.name" class="w-full h-full object-cover">
+                    <span *ngIf="!item.product.imageUrl" class="text-xs text-slate-400">🛍️</span>
+                  </div>
+                  <div class="min-w-0">
+                    <h4 class="font-bold text-slate-900 truncate max-w-[170px]">{{ item.product.name }}</h4>
+                    <p class="text-slate-400">{{ item.quantity }} x Rp {{ item.product.price | number:'1.0-0' }}</p>
+                  </div>
+                </div>
+                <span class="font-bold text-slate-900 flex-shrink-0">
+                  Rp {{ (item.product.price * item.quantity) | number:'1.0-0' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Price Breakdown -->
+            <div class="space-y-2.5 pt-4 border-t border-slate-100 text-xs text-slate-600">
+              <div class="flex items-center justify-between">
+                <span>Subtotal Barang</span>
+                <span class="font-bold text-slate-900">Rp {{ cartService.cartTotalPrice() | number:'1.0-0' }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Ongkos Kirim</span>
+                <span class="font-bold text-emerald-600">Gratis (Promo)</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Biaya Layanan</span>
+                <span class="text-slate-400">Rp 0</span>
+              </div>
+              
+              <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-extrabold text-slate-900">
+                <span>Total Pembayaran</span>
+                <span class="text-lg font-black text-indigo-600">
+                  Rp {{ cartService.cartTotalPrice() | number:'1.0-0' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" [disabled]="isSubmitting || cartService.cartItems().length === 0"
+              class="w-full py-4 px-4 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl text-xs font-bold text-center block transition-all shadow-sm disabled:opacity-50 btn-press">
+              <span *ngIf="!isSubmitting">Konfirmasi & Bayar Sekarang &rarr;</span>
+              <span *ngIf="isSubmitting">Memproses Transaksi...</span>
+            </button>
+
+            <a routerLink="/cart" class="text-center text-xs font-semibold text-slate-500 hover:text-slate-800 block">
+              &larr; Kembali Ubah Keranjang
+            </a>
+          </div>
+        </div>
+
+      </form>
+
     </div>
   `
 })
@@ -112,14 +171,7 @@ export class CheckoutComponent implements OnInit {
 
   ngOnInit() {
     if (this.cartService.cartItems().length === 0) {
-      this.toastService.warning('Cart is empty', 'Please add items to your cart before checkout.');
-      this.router.navigate(['/cart']);
-    }
-  }
-
-  removeItem(productId: string) {
-    this.cartService.removeFromCart(productId);
-    if (this.cartService.cartItems().length === 0) {
+      this.toastService.warning('Keranjang Kosong', 'Silakan pilih produk terlebih dahulu sebelum checkout.');
       this.router.navigate(['/cart']);
     }
   }
@@ -138,14 +190,14 @@ export class CheckoutComponent implements OnInit {
     };
 
     this.orderService.checkout(request).subscribe({
-      next: (response) => {
+      next: () => {
         this.cartService.clearCart();
-        this.toastService.success('Order Placed', 'Your order has been successfully placed.');
+        this.toastService.success('Pesanan Berhasil', 'Pesanan Anda telah berhasil dibuat dan tersimpan di sistem.');
         this.router.navigate(['/dashboard']);
       },
       error: (error) => {
         this.isSubmitting = false;
-        this.toastService.error('Order Failed', error.error?.message || 'Failed to place order.');
+        this.toastService.error('Pesanan Gagal', error.error?.message || 'Gagal memproses pesanan.');
       }
     });
   }

@@ -10,49 +10,68 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   template: `
-    <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg">
-        <div>
-          <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Forgot your password?</h2>
-          <p class="mt-2 text-center text-sm text-gray-600">
-            Enter your email address and we'll send you a link to reset your password.
+    <div class="min-h-screen flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 relative bg-slate-50/70">
+      
+      <!-- Ambient light effect -->
+      <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-100/40 rounded-full blur-3xl"></div>
+      </div>
+
+      <!-- Main Container -->
+      <div class="max-w-md w-full relative z-10 space-y-6">
+        
+        <!-- Brand Header -->
+        <div class="text-center space-y-2">
+          <a routerLink="/catalog" class="inline-flex items-center gap-2 group">
+            <div class="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
+              A
+            </div>
+            <span class="font-extrabold text-xl tracking-tight text-slate-900">AURA</span>
+          </a>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Lupa Kata Sandi</h1>
+          <p class="text-xs sm:text-sm text-slate-500">
+            Masukkan alamat email yang terdaftar untuk menerima tautan pemulihan kata sandi.
           </p>
         </div>
-        <form class="mt-8 space-y-6" [formGroup]="forgotForm" (ngSubmit)="onSubmit()">
-          <div class="rounded-md shadow-sm">
-            <div>
-              <label for="email-address" class="sr-only">Email address</label>
+
+        <!-- Auth Card -->
+        <div class="bg-white p-7 sm:p-9 rounded-3xl border border-slate-200/80 shadow-ambient-lg">
+          <form class="space-y-4" [formGroup]="forgotForm" (ngSubmit)="onSubmit()">
+            
+            <div class="space-y-1.5">
+              <label for="email-address" class="block text-xs font-bold text-slate-700">Alamat Email</label>
               <input id="email-address" type="email" formControlName="email" autocomplete="email" required
-                class="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                [ngClass]="{'border-red-500': submitted && f['email'].errors}">
-              <div *ngIf="submitted && f['email'].errors" class="text-red-500 text-xs mt-1">
-                <div *ngIf="f['email'].errors['required']">Email is required</div>
-                <div *ngIf="f['email'].errors['email']">Email must be a valid email address</div>
+                placeholder="nama@email.com"
+                class="w-full px-3.5 py-2.5 text-xs text-slate-900 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all"
+                [ngClass]="{'border-rose-400 focus:ring-rose-100 focus:border-rose-400': submitted && f['email'].errors}">
+              <div *ngIf="submitted && f['email'].errors" class="text-rose-600 text-[11px] font-medium pt-0.5">
+                <span *ngIf="f['email'].errors['required']">Email wajib diisi</span>
+                <span *ngIf="f['email'].errors['email']">Format alamat email tidak valid</span>
               </div>
             </div>
-          </div>
 
-          <div>
-            <button type="submit" [disabled]="isLoading"
-              class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors">
-              <span *ngIf="isLoading" class="absolute left-0 inset-y-0 flex items-center pl-3">
-                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <div class="pt-2">
+              <button type="submit" [disabled]="isLoading"
+                class="w-full py-3 px-4 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 btn-press">
+                <svg *ngIf="isLoading" class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-              </span>
-              {{ isLoading ? 'Sending...' : 'Send Reset Link' }}
-            </button>
-          </div>
-          
-          <div class="text-center text-sm">
-            <a routerLink="/login" class="font-medium text-indigo-600 hover:text-indigo-500">
-              Back to Sign In
-            </a>
-          </div>
-        </form>
+                <span>{{ isLoading ? 'Mengirimkan Tautan...' : 'Kirim Tautan Pemulihan' }}</span>
+              </button>
+            </div>
+
+            <div class="text-center pt-2">
+              <a routerLink="/login" class="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+                &larr; Kembali ke Halaman Masuk
+              </a>
+            </div>
+
+          </form>
+        </div>
+
       </div>
+
     </div>
   `
 })

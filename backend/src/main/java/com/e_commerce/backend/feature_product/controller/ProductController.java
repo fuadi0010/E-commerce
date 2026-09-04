@@ -1,9 +1,10 @@
 package com.e_commerce.backend.feature_product.controller;
 
 import com.e_commerce.backend.common.dto.ApiResponse;
+import com.e_commerce.backend.feature_product.dto.request.PatchProductRequest;
 import com.e_commerce.backend.feature_product.dto.request.ProductRequest;
-import com.e_commerce.backend.feature_product.dto.response.CategoryResponse;
 import com.e_commerce.backend.feature_product.dto.response.ProductResponse;
+import com.e_commerce.backend.feature_product.mapper.ProductMapper;
 import com.e_commerce.backend.feature_product.model.ProductEntity;
 import com.e_commerce.backend.feature_product.service.ProductService;
 import jakarta.validation.Valid;
@@ -18,13 +19,21 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/**
+ * ProductController — Rule 6, 7, 9, 50
+ * Menyediakan CRUD lengkap: List, Detail, Create, Update (PUT), Patch (PATCH), Delete.
+ * Response menggunakan ApiResponse<T>.
+ * Mapping dilakukan via ProductMapper (Rule 29).
+ */
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductMapper productMapper;
 
+    // POST /api/products — Admin only
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductRequest request) {
@@ -37,12 +46,35 @@ public class ProductController {
                 request.getImageUrl()
         );
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Produk berhasil dibuat", mapToResponse(entity)));
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Produk berhasil dibuat",
+                        productMapper.toResponse(entity)));
     }
 
+    // GET /api/products — Public, with search + filter + sort + pagination
+    @GetMapping
+    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getAllActiveProducts(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID categoryId,
+            @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
+        Page<ProductResponse> products = productService.getAllActiveProducts(search, categoryId, pageable)
+                .map(productMapper::toResponse);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Katalog Produk", products));
+    }
+
+    // GET /api/products/{id} — Public
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable UUID id) {
+        ProductEntity entity = productService.getProductById(id);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Detail produk",
+                productMapper.toResponse(entity)));
+    }
+
+    // PUT /api/products/{id} — Admin only (full update)
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(@PathVariable UUID id, @Valid @RequestBody ProductRequest request) {
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
+            @PathVariable UUID id,
+            @Valid @RequestBody ProductRequest request) {
         ProductEntity entity = productService.updateProduct(
                 id,
                 request.getName(),
@@ -51,44 +83,26 @@ public class ProductController {
                 request.getStock(),
                 request.getImageUrl()
         );
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil diperbarui", mapToResponse(entity)));
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil diperbarui",
+                productMapper.toResponse(entity)));
     }
 
+    // PATCH /api/products/{id} — Admin only (partial update), Rule 9
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProductResponse>> patchProduct(
+            @PathVariable UUID id,
+            @Valid @RequestBody PatchProductRequest request) {
+        ProductEntity entity = productService.patchProduct(id, request);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil diperbarui sebagian",
+                productMapper.toResponse(entity)));
+    }
+
+    // DELETE /api/products/{id} — Admin only (soft delete)
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> softDeleteProduct(@PathVariable UUID id) {
         productService.softDeleteProduct(id);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil dihapus (soft delete)", null));
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable UUID id) {
-        ProductEntity entity = productService.getProductById(id);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Detail produk", mapToResponse(entity)));
-    }
-
-    @GetMapping
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getAllActiveProducts(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) UUID categoryId,
-            @PageableDefault(size = 10) Pageable pageable) {
-        Page<ProductResponse> products = productService.getAllActiveProducts(search, categoryId, pageable)
-                .map(this::mapToResponse);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Katalog Produk", products));
-    }
-
-    private ProductResponse mapToResponse(ProductEntity entity) {
-        return ProductResponse.builder()
-                .id(entity.getId())
-                .name(entity.getName())
-                .description(entity.getDescription())
-                .price(entity.getPrice())
-                .stock(entity.getStock())
-                .imageUrl(entity.getImageUrl())
-                .category(CategoryResponse.builder()
-                        .id(entity.getCategory().getId())
-                        .name(entity.getCategory().getName())
-                        .build())
-                .build();
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil dihapus", null));
     }
 }
