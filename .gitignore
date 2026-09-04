@@ -120,6 +120,6 @@ temp/
 # ==========================================
 .agents/scratch/
 .antigravity/
-.agents/
+.agents/ 
 rules.md
 skills-lock.json
