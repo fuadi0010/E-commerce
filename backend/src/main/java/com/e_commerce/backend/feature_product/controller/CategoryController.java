@@ -8,6 +8,9 @@ import com.e_commerce.backend.feature_product.model.CategoryEntity;
 import com.e_commerce.backend.feature_product.service.CategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -40,13 +43,22 @@ public class CategoryController {
                         productMapper.toCategoryResponse(entity)));
     }
 
-    // GET /api/categories — Public
+    // GET /api/categories — Public, paginated (Rule 20)
     @GetMapping
-    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAllCategories() {
+    public ResponseEntity<ApiResponse<Page<CategoryResponse>>> getAllCategories(
+            @PageableDefault(size = 10, sort = "name") Pageable pageable) {
+        Page<CategoryResponse> responses = categoryService.getAllCategories(pageable)
+                .map(productMapper::toCategoryResponse);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Daftar kategori", responses));
+    }
+
+    // GET /api/categories/all — Public, unpaged list for dropdowns
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAllCategoriesList() {
         List<CategoryResponse> responses = categoryService.getAllCategories().stream()
                 .map(productMapper::toCategoryResponse)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Daftar kategori", responses));
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Semua kategori", responses));
     }
 
     // GET /api/categories/{id} — Public

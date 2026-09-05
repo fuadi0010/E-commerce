@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Category } from '../models/product.model';
+import { Category, PageResponse } from '../models/product.model';
 import { ApiResponse } from '../models/api-response.model';
 
 export interface CategoryRequest {
@@ -16,8 +16,15 @@ export class CategoryService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/categories`;
 
+  getCategories(page: number = 0, size: number = 10): Observable<ApiResponse<PageResponse<Category>>> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+    return this.http.get<ApiResponse<PageResponse<Category>>>(this.apiUrl, { params });
+  }
+
   getAllCategories(): Observable<ApiResponse<Category[]>> {
-    return this.http.get<ApiResponse<Category[]>>(this.apiUrl);
+    return this.http.get<ApiResponse<Category[]>>(`${this.apiUrl}/all`);
   }
 
   getCategoryById(id: string): Observable<ApiResponse<Category>> {

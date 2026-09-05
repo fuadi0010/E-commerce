@@ -13,7 +13,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;

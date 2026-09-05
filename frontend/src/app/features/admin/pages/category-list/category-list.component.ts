@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CategoryService } from '../../../../core/services/category.service';
-import { Category } from '../../../../core/models/product.model';
+import { Category, PageResponse } from '../../../../core/models/product.model';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 
 @Component({
@@ -17,12 +17,24 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
           <h2 class="text-base font-bold text-slate-900">Manajemen Kategori</h2>
           <p class="text-xs text-slate-400 mt-0.5">Kelola kategori produk untuk pengelompokan katalog toko</p>
         </div>
-        <a routerLink="/admin/categories/new" class="inline-flex items-center justify-center px-4 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all gap-2 btn-press">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
-          </svg>
-          <span>Tambah Kategori</span>
-        </a>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 text-xs text-slate-500">
+            <span>Tampilkan:</span>
+            <select [(ngModel)]="pageSize" (change)="onPageSizeChange()"
+              class="text-xs border border-slate-200 rounded-xl py-1 px-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option [ngValue]="5">5</option>
+              <option [ngValue]="10">10</option>
+              <option [ngValue]="20">20</option>
+              <option [ngValue]="50">50</option>
+            </select>
+          </div>
+          <a routerLink="/admin/categories/new" class="inline-flex items-center justify-center px-4 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all gap-2 btn-press">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span>Tambah Kategori</span>
+          </a>
+        </div>
       </div>
 
       <!-- Loading State -->
@@ -58,7 +70,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
           </thead>
           <tbody class="divide-y divide-slate-100">
             <tr *ngFor="let category of categories; let i = index" class="hover:bg-slate-50/60 transition-colors">
-              <td class="px-6 py-4 text-slate-400 font-mono">{{ i + 1 }}</td>
+              <td class="px-6 py-4 text-slate-400 font-mono">{{ (currentPage * pageSize) + i + 1 }}</td>
               
               <!-- Nama Kategori: Normal / Edit Mode -->
               <td class="px-6 py-4 font-bold text-slate-900">
@@ -100,9 +112,32 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
         </table>
       </div>
 
-      <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-400 flex justify-between items-center">
-        <span>Total {{ categories.length }} kategori terdaftar</span>
-        <span class="text-indigo-600 font-semibold">Tersinkronisasi</span>
+      <!-- Pagination Toolbar -->
+      <div *ngIf="pageData && pageData.totalElements > 0" class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+        <div>
+          Menampilkan <span class="font-bold text-slate-900">{{ (currentPage * pageSize) + 1 }}</span>
+          sampai <span class="font-bold text-slate-900">{{ getEndIndex() }}</span>
+          dari total <span class="font-bold text-slate-900">{{ pageData.totalElements }}</span> kategori
+        </div>
+
+        <!-- Page Numbers List -->
+        <div class="flex items-center gap-1">
+          <button (click)="changePage(currentPage - 1)" [disabled]="currentPage === 0"
+            class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 transition-colors text-xs font-semibold">
+            &larr; Prev
+          </button>
+          
+          <button *ngFor="let p of getPagesArray()" (click)="changePage(p)"
+            [ngClass]="p === currentPage ? 'bg-slate-900 text-white font-bold' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'"
+            class="w-7 h-7 rounded-xl text-xs transition-colors flex items-center justify-center font-semibold">
+            {{ p + 1 }}
+          </button>
+
+          <button (click)="changePage(currentPage + 1)" [disabled]="pageData.last"
+            class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 transition-colors text-xs font-semibold">
+            Next &rarr;
+          </button>
+        </div>
       </div>
     </div>
   `
@@ -112,8 +147,11 @@ export class CategoryListComponent implements OnInit {
   private toastService = inject(ToastService);
 
   categories: Category[] = [];
+  pageData: PageResponse<Category> | null = null;
   isLoading = false;
   isSaving = false;
+  currentPage = 0;
+  pageSize = 10;
   editingId: string | null = null;
   editingName = '';
 
@@ -123,10 +161,11 @@ export class CategoryListComponent implements OnInit {
 
   loadCategories() {
     this.isLoading = true;
-    this.categoryService.getAllCategories().subscribe({
+    this.categoryService.getCategories(this.currentPage, this.pageSize).subscribe({
       next: (response) => {
         if (response.data) {
-          this.categories = response.data;
+          this.pageData = response.data;
+          this.categories = response.data.content;
         }
       },
       error: () => {
@@ -137,6 +176,28 @@ export class CategoryListComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  onPageSizeChange() {
+    this.currentPage = 0;
+    this.loadCategories();
+  }
+
+  changePage(page: number): void {
+    if (page >= 0 && (!this.pageData || page < this.pageData.totalPages)) {
+      this.currentPage = page;
+      this.loadCategories();
+    }
+  }
+
+  getPagesArray(): number[] {
+    if (!this.pageData) return [];
+    return Array.from({ length: this.pageData.totalPages }, (_, i) => i);
+  }
+
+  getEndIndex(): number {
+    if (!this.pageData) return 0;
+    return Math.min((this.currentPage + 1) * this.pageSize, this.pageData.totalElements);
   }
 
   startEdit(category: Category) {

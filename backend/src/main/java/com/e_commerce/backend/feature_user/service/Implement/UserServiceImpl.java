@@ -5,13 +5,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
+import com.e_commerce.backend.feature_user.Model.Role;
 import com.e_commerce.backend.feature_user.Model.UserEntity;
 import com.e_commerce.backend.feature_user.Model.UserProfileEntity;
 import com.e_commerce.backend.feature_user.dto.UpdateProfileRequest;
 import com.e_commerce.backend.feature_user.dto.UserProfileResponse;
+import com.e_commerce.backend.feature_user.dto.UserResponse;
 import com.e_commerce.backend.feature_user.repository.UserProfileRepository;
 import com.e_commerce.backend.feature_user.repository.UserRepository;
 import com.e_commerce.backend.feature_user.service.UserService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.Collections;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 
@@ -70,6 +79,40 @@ public class UserServiceImpl implements UserService{
         return mapToResponse(user, updatedProfile);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable)
+                .map(user -> {
+                    UserProfileEntity profile = userProfileRepository.findByUser(user).orElse(null);
+                    return mapToUserResponse(user, profile);
+                });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponse getUserById(UUID id) {
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User tidak ditemukan dengan ID: " + id));
+        UserProfileEntity profile = userProfileRepository.findByUser(user).orElse(null);
+        return mapToUserResponse(user, profile);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(UUID id) {
+        UserEntity currentUser = getCurrentUser();
+        if (currentUser.getId().equals(id)) {
+            throw new IllegalArgumentException("Admin tidak dapat menghapus akunnya sendiri.");
+        }
+
+        UserEntity targetUser = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User tidak ditemukan dengan ID: " + id));
+
+        // Memanggil delete yang secara otomatis memicu @SQLDelete pada UserEntity (soft delete)
+        userRepository.delete(targetUser);
+    }
+
     private UserProfileResponse mapToResponse(UserEntity user, UserProfileEntity profile) {
         return UserProfileResponse.builder()
                 .email(user.getEmail())
@@ -77,6 +120,22 @@ public class UserServiceImpl implements UserService{
                 .phone(profile.getPhone())
                 .address(profile.getAddress())
                 .joinedAt(user.getCreatedAt())
+                .build();
+    }
+
+    private UserResponse mapToUserResponse(UserEntity user, UserProfileEntity profile) {
+        Set<String> roleNames = user.getRoles() != null
+                ? user.getRoles().stream().map(Role::getName).collect(Collectors.toSet())
+                : Collections.emptySet();
+
+        return UserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(profile != null ? profile.getFullName() : null)
+                .phone(profile != null ? profile.getPhone() : null)
+                .address(profile != null ? profile.getAddress() : null)
+                .roles(roleNames)
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 }

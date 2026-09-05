@@ -1,12 +1,18 @@
 package com.e_commerce.backend.feature_user.service.Implement;
 
 import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
+import com.e_commerce.backend.feature_user.Model.Role;
 import com.e_commerce.backend.feature_user.Model.UserEntity;
 import com.e_commerce.backend.feature_user.Model.UserProfileEntity;
 import com.e_commerce.backend.feature_user.dto.UpdateProfileRequest;
 import com.e_commerce.backend.feature_user.dto.UserProfileResponse;
+import com.e_commerce.backend.feature_user.dto.UserResponse;
 import com.e_commerce.backend.feature_user.repository.UserProfileRepository;
 import com.e_commerce.backend.feature_user.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +26,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -151,5 +159,76 @@ class UserServiceImplTest {
         verify(userProfileRepository, times(1)).save(argThat(p ->
                 p.getPhone() == null && p.getAddress() == null
         ));
+    }
+
+    @Test
+    @DisplayName("getAllUsers - returns paginated list of users")
+    void getAllUsers_Success() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<UserEntity> userPage = new PageImpl<>(List.of(mockUser), pageable, 1);
+
+        when(userRepository.findAll(pageable)).thenReturn(userPage);
+        when(userProfileRepository.findByUser(mockUser)).thenReturn(Optional.of(mockProfile));
+
+        Page<UserResponse> result = userService.getAllUsers(pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals("test@example.com", result.getContent().get(0).getEmail());
+        assertEquals("John Doe", result.getContent().get(0).getFullName());
+    }
+
+    @Test
+    @DisplayName("getUserById - returns user details when found")
+    void getUserById_Success() {
+        UUID id = mockUser.getId();
+        when(userRepository.findById(id)).thenReturn(Optional.of(mockUser));
+        when(userProfileRepository.findByUser(mockUser)).thenReturn(Optional.of(mockProfile));
+
+        UserResponse response = userService.getUserById(id);
+
+        assertNotNull(response);
+        assertEquals(id, response.getId());
+        assertEquals("test@example.com", response.getEmail());
+        assertEquals("John Doe", response.getFullName());
+    }
+
+    @Test
+    @DisplayName("getUserById - throws ResourceNotFoundException when user not found")
+    void getUserById_NotFound() {
+        UUID randomId = UUID.randomUUID();
+        when(userRepository.findById(randomId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.getUserById(randomId));
+    }
+
+    @Test
+    @DisplayName("deleteUser - successfully soft deletes target user")
+    void deleteUser_Success() {
+        UUID targetId = UUID.randomUUID();
+        UserEntity targetUser = new UserEntity();
+        targetUser.setId(targetId);
+        targetUser.setEmail("other@example.com");
+
+        when(userRepository.findByEmailAndDeletedAtIsNull("test@example.com"))
+                .thenReturn(Optional.of(mockUser));
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(targetUser));
+
+        userService.deleteUser(targetId);
+
+        verify(userRepository, times(1)).delete(targetUser);
+    }
+
+    @Test
+    @DisplayName("deleteUser - throws IllegalArgumentException when admin tries to delete own account")
+    void deleteUser_SelfDeletion_ThrowsException() {
+        when(userRepository.findByEmailAndDeletedAtIsNull("test@example.com"))
+                .thenReturn(Optional.of(mockUser));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                userService.deleteUser(mockUser.getId())
+        );
+        assertTrue(ex.getMessage().contains("tidak dapat menghapus akunnya sendiri"));
+        verify(userRepository, never()).delete(any());
     }
 }
