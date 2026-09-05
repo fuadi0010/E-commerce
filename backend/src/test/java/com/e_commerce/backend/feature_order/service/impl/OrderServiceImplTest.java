@@ -9,7 +9,7 @@ import com.e_commerce.backend.feature_order.repository.OrderItemRepository;
 import com.e_commerce.backend.feature_order.repository.OrderRepository;
 import com.e_commerce.backend.feature_product.model.ProductEntity;
 import com.e_commerce.backend.feature_product.repository.ProductRepository;
-import com.e_commerce.backend.feature_user.Model.UserEntity;
+import com.e_commerce.backend.feature_user.model.UserEntity;
 import com.e_commerce.backend.feature_user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

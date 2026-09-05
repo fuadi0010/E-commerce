@@ -1,6 +1,8 @@
 {
 	"info": {
+		"_postman_id": "c7f2128a-823d-4c3e-9081-3475bd6cf982",
 		"name": "E-Commerce API",
+		"description": "Dokumentasi Postman Collection Lengkap untuk Proyek Fullstack E-Commerce S1",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -41,9 +43,15 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"var jsonData = pm.response.json();\r",
-									"if(jsonData && jsonData.data && jsonData.data.token) {\r",
-									"    pm.collectionVariables.set(\"token\", jsonData.data.token);\r",
+									"var jsonData = pm.response.json();",
+									"if(jsonData && jsonData.data) {",
+									"    var token = jsonData.data.accessToken || jsonData.data.token;",
+									"    if (token) {",
+									"        pm.collectionVariables.set(\"token\", token);",
+									"    }",
+									"    if (jsonData.data.refreshToken) {",
+									"        pm.collectionVariables.set(\"refreshToken\", jsonData.data.refreshToken);",
+									"    }",
 									"}"
 								],
 								"type": "text/javascript"
@@ -74,6 +82,128 @@
 							]
 						}
 					}
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if(jsonData && jsonData.data && jsonData.data.accessToken) {",
+									"    pm.collectionVariables.set(\"token\", jsonData.data.accessToken);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh-token",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"refresh-token"
+							]
+						}
+					}
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"customer@test.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/forgot-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"forgot-password"
+							]
+						}
+					}
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"token-reset-dari-email\",\n  \"newPassword\": \"NewPassword123!\",\n  \"confirmPassword\": \"NewPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/reset-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"reset-password"
+							]
+						}
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						}
+					}
 				}
 			]
 		},
@@ -81,18 +211,68 @@
 			"name": "2. Categories",
 			"item": [
 				{
-					"name": "Get All Categories",
+					"name": "Get All Categories (Paginated)",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/categories",
+							"raw": "{{baseUrl}}/api/categories?page=0&size=10&sort=name,asc",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"categories"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "sort",
+									"value": "name,asc"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get All Categories (Unpaged List)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/all",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								"all"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Category By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/123e4567-e89b-12d3-a456-426614174000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								"123e4567-e89b-12d3-a456-426614174000"
 							]
 						}
 					}
@@ -132,6 +312,71 @@
 							]
 						}
 					}
+				},
+				{
+					"name": "Update Category (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Elektronik & Gadget\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/123e4567-e89b-12d3-a456-426614174000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								"123e4567-e89b-12d3-a456-426614174000"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Category (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/categories/123e4567-e89b-12d3-a456-426614174000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"categories",
+								"123e4567-e89b-12d3-a456-426614174000"
+							]
+						}
+					}
 				}
 			]
 		},
@@ -144,7 +389,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/products?page=0&size=10&sort=price,asc",
+							"raw": "{{baseUrl}}/api/products?page=0&size=10&sort=createdAt,desc",
 							"host": [
 								"{{baseUrl}}"
 							],
@@ -173,7 +418,7 @@
 								},
 								{
 									"key": "sort",
-									"value": "price,asc"
+									"value": "createdAt,desc"
 								}
 							]
 						}
@@ -219,7 +464,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"categoryId\": \"uuid-kategori-di-sini\",\n  \"name\": \"Laptop Gaming X\",\n  \"description\": \"Laptop keren buat main game berat.\",\n  \"price\": 15000000.00,\n  \"stock\": 10,\n  \"imageUrl\": \"uuid-gambar.png\"\n}"
+							"raw": "{\n  \"categoryId\": \"123e4567-e89b-12d3-a456-426614174000\",\n  \"name\": \"Laptop Gaming X\",\n  \"description\": \"Laptop performa tinggi untuk gaming dan editing.\",\n  \"price\": 15000000.00,\n  \"stock\": 10,\n  \"imageUrl\": \"/uploads/laptop.png\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/products",
@@ -255,7 +500,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"Laptop Gaming X - Diskon\",\n  \"description\": \"Laptop keren dengan potongan harga.\",\n  \"price\": 14500000.00,\n  \"stock\": 5,\n  \"imageUrl\": \"uuid-gambar.png\"\n}"
+							"raw": "{\n  \"categoryId\": \"123e4567-e89b-12d3-a456-426614174000\",\n  \"name\": \"Laptop Gaming X Pro\",\n  \"description\": \"Laptop performa tinggi dengan upgrade RAM.\",\n  \"price\": 16500000.00,\n  \"stock\": 8,\n  \"imageUrl\": \"/uploads/laptop-pro.png\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/products/123e4567-e89b-12d3-a456-426614174000",
@@ -325,7 +570,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"uuid-produk-di-sini\",\n      \"quantity\": 2\n    }\n  ]\n}"
+							"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"123e4567-e89b-12d3-a456-426614174000\",\n      \"quantity\": 2\n    }\n  ]\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/orders/checkout",
@@ -356,7 +601,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/orders/my-orders",
+							"raw": "{{baseUrl}}/api/orders/my-orders?page=0&size=10",
 							"host": [
 								"{{baseUrl}}"
 							],
@@ -364,6 +609,92 @@
 								"api",
 								"orders",
 								"my-orders"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "status",
+									"value": "PENDING",
+									"disabled": true
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Order By ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/orders/123e4567-e89b-12d3-a456-426614174000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"123e4567-e89b-12d3-a456-426614174000"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get All Orders (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/orders/admin?page=0&size=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"admin"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "status",
+									"value": "PENDING",
+									"disabled": true
+								}
 							]
 						}
 					}
@@ -381,7 +712,7 @@
 								}
 							]
 						},
-						"method": "PUT",
+						"method": "PATCH",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -390,7 +721,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"status\": \"SHIPPED\"\n}"
+							"raw": "{\n  \"status\": \"PAID\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/orders/123e4567-e89b-12d3-a456-426614174000/status",
@@ -449,6 +780,169 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "6. Users",
+			"item": [
+				{
+					"name": "Get My Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"me"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update My Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"John Doe Updated\",\n  \"phone\": \"081234567890\",\n  \"address\": \"Jl. Sudirman No. 10, Jakarta\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"me"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get All Users (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users?page=0&size=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get User By ID (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/123e4567-e89b-12d3-a456-426614174000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"123e4567-e89b-12d3-a456-426614174000"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete User (Admin - Soft Delete)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/123e4567-e89b-12d3-a456-426614174000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"123e4567-e89b-12d3-a456-426614174000"
+							]
+						}
+					}
+				}
+			]
 		}
 	],
 	"variable": [
@@ -458,6 +952,10 @@
 		},
 		{
 			"key": "token",
+			"value": ""
+		},
+		{
+			"key": "refreshToken",
 			"value": ""
 		}
 	]

@@ -1,7 +1,7 @@
 package com.e_commerce.backend.feature_order.model;
 
 import com.e_commerce.backend.common.entity.BaseEntity;
-import com.e_commerce.backend.feature_user.Model.UserEntity;
+import com.e_commerce.backend.feature_user.model.UserEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

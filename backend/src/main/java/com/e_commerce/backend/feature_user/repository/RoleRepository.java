@@ -4,7 +4,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.e_commerce.backend.feature_user.Model.Role;
+import com.e_commerce.backend.feature_user.model.Role;
 
 import java.util.UUID;
 

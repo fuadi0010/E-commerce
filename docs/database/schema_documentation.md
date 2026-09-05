@@ -123,3 +123,16 @@ Tabel pendukung autentikasi untuk refresh session dan reset password yang aman (
 2. **Soft Delete**: Data user dan produk tidak dihapus secara fisik (`deleted_at IS NULL`).
 3. **Auditing**: Kolom `created_at` dan `updated_at` di setiap tabel domain.
 4. **Optimistic & Pessimistic Locking**: Mencegah race condition pada stok produk saat pemesanan massal.
+
+---
+
+## 4. Riwayat Migrasi Flyway (Version History)
+
+| Migrasi | File SQL | Keterangan Evolusi Skema |
+| :--- | :--- | :--- |
+| **V1** | `V1__Init_Tables.sql` | Inisialisasi skema awal (Roles, Users, User_Roles, User_Profiles, Categories, Products, Orders, Order_Items). |
+| **V3** | `V3__Add_Image_Url_To_Products.sql` | Penambahan kolom `image_url` pada tabel `products`. |
+| **V4** | `V4__Create_Token_Tables.sql` | Penambahan tabel `refresh_tokens` dan `password_reset_tokens`. |
+| **V5** | `V5__Add_Version_Column_To_Products.sql` | Penambahan kolom `version` pada tabel `products` untuk JPA Optimistic Locking. |
+| **V6** | `V6__Seed_Data.sql` | Data seeding master roles, user admin, customer, kategori, dan katalog produk. |
+

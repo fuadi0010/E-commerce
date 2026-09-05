@@ -1,7 +1,7 @@
 package com.e_commerce.backend.feature_user.mapper;
 
-import com.e_commerce.backend.feature_user.Model.UserEntity;
-import com.e_commerce.backend.feature_user.Model.UserProfileEntity;
+import com.e_commerce.backend.feature_user.model.UserEntity;
+import com.e_commerce.backend.feature_user.model.UserProfileEntity;
 import com.e_commerce.backend.feature_user.dto.UserProfileResponse;
 import org.springframework.stereotype.Component;
 

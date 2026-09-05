@@ -1,7 +1,7 @@
 package com.e_commerce.backend.security;
 
-import com.e_commerce.backend.feature_user.Model.Role;
-import com.e_commerce.backend.feature_user.Model.UserEntity;
+import com.e_commerce.backend.feature_user.model.Role;
+import com.e_commerce.backend.feature_user.model.UserEntity;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;

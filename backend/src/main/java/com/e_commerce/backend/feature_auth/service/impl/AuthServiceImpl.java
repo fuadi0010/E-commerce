@@ -24,9 +24,9 @@ import com.e_commerce.backend.feature_auth.model.RefreshTokenEntity;
 import com.e_commerce.backend.feature_auth.repository.PasswordResetTokenRepository;
 import com.e_commerce.backend.feature_auth.repository.RefreshTokenRepository;
 import com.e_commerce.backend.feature_auth.service.AuthService;
-import com.e_commerce.backend.feature_user.Model.Role;
-import com.e_commerce.backend.feature_user.Model.UserEntity;
-import com.e_commerce.backend.feature_user.Model.UserProfileEntity;
+import com.e_commerce.backend.feature_user.model.Role;
+import com.e_commerce.backend.feature_user.model.UserEntity;
+import com.e_commerce.backend.feature_user.model.UserProfileEntity;
 import com.e_commerce.backend.feature_user.repository.RoleRepository;
 import com.e_commerce.backend.feature_user.repository.UserProfileRepository;
 import com.e_commerce.backend.feature_user.repository.UserRepository;
@@ -152,7 +152,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         List<String> roles = refreshTokenEntity.getUser().getRoles().stream()
-                .map(com.e_commerce.backend.feature_user.Model.Role::getName)
+                .map(Role::getName)
                 .collect(Collectors.toList());
         String newJwt = jwtUtils.generateJwtTokenFromEmail(refreshTokenEntity.getUser().getEmail(), roles);
         

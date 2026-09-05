@@ -1,13 +1,13 @@
-package com.e_commerce.backend.feature_user.service.Implement;
+package com.e_commerce.backend.feature_user.service.impl;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
-import com.e_commerce.backend.feature_user.Model.Role;
-import com.e_commerce.backend.feature_user.Model.UserEntity;
-import com.e_commerce.backend.feature_user.Model.UserProfileEntity;
+import com.e_commerce.backend.feature_user.model.Role;
+import com.e_commerce.backend.feature_user.model.UserEntity;
+import com.e_commerce.backend.feature_user.model.UserProfileEntity;
 import com.e_commerce.backend.feature_user.dto.UpdateProfileRequest;
 import com.e_commerce.backend.feature_user.dto.UserProfileResponse;
 import com.e_commerce.backend.feature_user.dto.UserResponse;

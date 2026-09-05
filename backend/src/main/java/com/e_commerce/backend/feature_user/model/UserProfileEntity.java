@@ -1,4 +1,4 @@
-package com.e_commerce.backend.feature_user.Model;
+package com.e_commerce.backend.feature_user.model;
 
 import java.time.ZonedDateTime;
 
