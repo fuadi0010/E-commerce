@@ -69,7 +69,7 @@ import { CartService } from '../../../../core/services/cart.service';
                     {{ item.product.category.name || 'Umum' }}
                   </span>
                   <h3 class="text-sm font-bold text-slate-900 leading-snug">
-                    <a [routerLink]="['/product', item.product.slug]" class="hover:text-indigo-600 transition-colors">
+                    <a [routerLink]="['/product', item.product.id]" class="hover:text-indigo-600 transition-colors">
                       {{ item.product.name }}
                     </a>
                   </h3>

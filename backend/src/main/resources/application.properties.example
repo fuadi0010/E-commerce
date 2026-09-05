@@ -53,7 +53,7 @@ spring.servlet.multipart.max-request-size=5MB
 # 6. SECURITY & JWT (Custom Properties)
 # ==========================================
 # Jangan pernah hardcode secret key di file ini saat push ke GitHub!
-app.jwt.secret=${JWT_SECRET:rahasia-default-yang-sangat-panjang-minimal-256-bit-untuk-hs256}
+app.jwt.secret=${JWT_SECRET:your_jwt_secret_key_minimum_256_bits_length}
 app.jwt.expirationMs=3600000
 
 # ==========================================

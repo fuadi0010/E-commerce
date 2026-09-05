@@ -18,9 +18,9 @@ public class MailtrapLiveSendTest {
     @DisplayName("Send live email using Mailtrap API Token")
     void sendTestEmail() {
         String token = System.getenv("MAILTRAP_API_TOKEN");
-        if (token == null || token.isBlank()) {
-            token = "2d3586e24ee1acad4a73d5c5dbf973a5";
-        }
+        org.junit.jupiter.api.Assumptions.assumeTrue(token != null && !token.isBlank(), "MAILTRAP_API_TOKEN env var is not set, skipping live test");
+
+        String recipientEmail = System.getenv().getOrDefault("MAILTRAP_TEST_RECIPIENT", "test@example.com");
 
         MailtrapConfig config = new MailtrapConfig.Builder()
                 .token(token)
@@ -30,7 +30,7 @@ public class MailtrapLiveSendTest {
 
         MailtrapMail mail = MailtrapMail.builder()
                 .from(new Address("hello@demomailtrap.co", "Mailtrap Test"))
-                .to(List.of(new Address("borkatganteng727@gmail.com")))
+                .to(List.of(new Address(recipientEmail)))
                 .subject("Test Email from E-Commerce App")
                 .text("Halo! Ini adalah email uji coba Mailtrap Java SDK yang berhasil dikonfigurasi.")
                 .category("Integration Test")

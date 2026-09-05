@@ -24,4 +24,24 @@ export class OrderService {
       
     return this.http.get<ApiResponse<PageResponse<OrderResponse>>>(`${this.apiUrl}/my-orders`, { params });
   }
+
+  getAllOrdersAdmin(page: number = 0, size: number = 10, status?: string): Observable<ApiResponse<PageResponse<OrderResponse>>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    if (status && status.trim() !== '' && status !== 'ALL') {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<ApiResponse<PageResponse<OrderResponse>>>(`${this.apiUrl}/admin`, { params });
+  }
+
+  getOrderById(id: string): Observable<ApiResponse<OrderResponse>> {
+    return this.http.get<ApiResponse<OrderResponse>>(`${this.apiUrl}/${id}`);
+  }
+
+  updateOrderStatus(id: string, status: string): Observable<ApiResponse<OrderResponse>> {
+    return this.http.patch<ApiResponse<OrderResponse>>(`${this.apiUrl}/${id}/status`, { status });
+  }
 }

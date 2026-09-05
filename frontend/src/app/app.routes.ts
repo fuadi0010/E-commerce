@@ -16,6 +16,7 @@ import { CategoryListComponent } from './features/admin/pages/category-list/cate
 import { CategoryCreateComponent } from './features/admin/pages/category-create/category-create.component';
 import { ProductListComponent } from './features/admin/pages/product-list/product-list.component';
 import { ProductFormComponent } from './features/admin/pages/product-form/product-form.component';
+import { OrderListComponent } from './features/admin/pages/order-list/order-list.component';
 
 // Rule 57: Error page components
 import { NotFoundComponent } from './shared/components/error-pages/not-found/not-found.component';
@@ -31,7 +32,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'catalog', pathMatch: 'full' },
       { path: 'catalog', component: ProductCatalogComponent },
-      { path: 'product/:slug', component: ProductDetailComponent },
+      { path: 'product/:id', component: ProductDetailComponent },
       {
         path: 'cart',
         loadComponent: () => import('./features/cart/pages/cart/cart.component').then(m => m.CartComponent)
@@ -74,7 +75,8 @@ export const routes: Routes = [
       { path: 'categories/new', component: CategoryCreateComponent },
       { path: 'products', component: ProductListComponent },
       { path: 'products/new', component: ProductFormComponent },
-      { path: 'products/edit/:id', component: ProductFormComponent }
+      { path: 'products/edit/:id', component: ProductFormComponent },
+      { path: 'orders', component: OrderListComponent }
     ]
   },
 

@@ -195,16 +195,16 @@ export class ProductDetailComponent implements OnInit {
 
   ngOnInit() {
     this.route.paramMap.subscribe(params => {
-      const slug = params.get('slug');
-      if (slug) {
-        this.loadProduct(slug);
+      const id = params.get('id') || params.get('slug');
+      if (id) {
+        this.loadProduct(id);
       }
     });
   }
 
-  loadProduct(slug: string) {
+  loadProduct(id: string) {
     this.isLoading = true;
-    this.productService.getProductBySlug(slug).subscribe({
+    this.productService.getProductById(id).subscribe({
       next: (response: ApiResponse<Product>) => {
         if (response.data) {
           this.product = response.data;

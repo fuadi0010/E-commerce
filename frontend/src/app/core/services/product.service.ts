@@ -63,10 +63,6 @@ export class ProductService {
     return this.http.get<ApiResponse<Product>>(`${this.apiUrl}/${id}`);
   }
 
-  getProductBySlug(slug: string): Observable<ApiResponse<Product>> {
-    return this.http.get<ApiResponse<Product>>(`${this.apiUrl}/${slug}`);
-  }
-
   createProduct(request: any): Observable<ApiResponse<Product>> {
     return this.http.post<ApiResponse<Product>>(this.apiUrl, request);
   }

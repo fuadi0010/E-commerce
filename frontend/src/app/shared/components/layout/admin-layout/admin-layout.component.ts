@@ -48,6 +48,14 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
             </svg>
             <span>Manajemen Produk</span>
           </a>
+
+          <a routerLink="/admin/orders" routerLinkActive="bg-indigo-600 text-white font-bold" 
+            class="flex items-center gap-3 px-3.5 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-slate-900 rounded-xl transition-colors">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+            </svg>
+            <span>Manajemen Pesanan</span>
+          </a>
         </nav>
 
         <!-- Sidebar Footer -->

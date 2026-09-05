@@ -232,7 +232,7 @@ import { CartService } from '../../../../core/services/cart.service';
                     </div>
 
                     <h3 class="text-sm font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors">
-                      <a [routerLink]="['/product', product.slug]" class="focus:outline-none">
+                      <a [routerLink]="['/product', product.id]" class="focus:outline-none">
                         {{ product.name }}
                       </a>
                     </h3>
@@ -251,7 +251,7 @@ import { CartService } from '../../../../core/services/cart.service';
                   </div>
 
                   <div class="flex items-center gap-1.5">
-                    <a [routerLink]="['/product', product.slug]"
+                    <a [routerLink]="['/product', product.id]"
                       class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                       title="Lihat Detail">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
