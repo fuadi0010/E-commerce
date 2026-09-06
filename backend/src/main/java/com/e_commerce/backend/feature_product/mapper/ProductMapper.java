@@ -31,6 +31,7 @@ public class ProductMapper {
         return CategoryResponse.builder()
                 .id(entity.getId())
                 .name(entity.getName())
+                .isActive(entity.getIsActive())
                 .build();
     }
 }

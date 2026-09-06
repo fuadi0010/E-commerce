@@ -28,6 +28,9 @@ public class ProductServiceImpl implements ProductService {
     public ProductEntity createProduct(UUID categoryId, String name, String description,
                                         BigDecimal price, Integer stock, String imageUrl) {
         CategoryEntity category = categoryService.getCategoryById(categoryId);
+        if (Boolean.FALSE.equals(category.getIsActive())) {
+            throw new IllegalArgumentException("Kategori tidak aktif atau disembunyikan. Tidak dapat menambahkan produk pada kategori ini.");
+        }
 
         ProductEntity product = new ProductEntity();
         product.setCategory(category);

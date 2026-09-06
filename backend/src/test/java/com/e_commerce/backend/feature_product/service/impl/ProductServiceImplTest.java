@@ -54,6 +54,7 @@ class ProductServiceImplTest {
         mockCategory = new CategoryEntity();
         mockCategory.setId(categoryId);
         mockCategory.setName("Elektronik");
+        mockCategory.setIsActive(true);
 
         mockProduct = new ProductEntity();
         mockProduct.setId(productId);
@@ -84,6 +85,21 @@ class ProductServiceImplTest {
 
         verify(categoryService, times(1)).getCategoryById(categoryId);
         verify(productRepository, times(1)).save(any(ProductEntity.class));
+    }
+
+    @Test
+    @DisplayName("createProduct: Kategori tidak aktif / disembunyikan → IllegalArgumentException")
+    void createProduct_InactiveCategory_ThrowsIllegalArgumentException() {
+        mockCategory.setIsActive(false);
+        when(categoryService.getCategoryById(categoryId)).thenReturn(mockCategory);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                productService.createProduct(categoryId, "Laptop Asus ROG", "Laptop gaming",
+                        new BigDecimal("15000000"), 10, null));
+
+        assertTrue(ex.getMessage().contains("tidak aktif"));
+        verify(categoryService, times(1)).getCategoryById(categoryId);
+        verify(productRepository, never()).save(any(ProductEntity.class));
     }
 
     // ===========================

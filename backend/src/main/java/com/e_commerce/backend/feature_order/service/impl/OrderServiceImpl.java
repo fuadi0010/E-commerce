@@ -9,11 +9,13 @@ import com.e_commerce.backend.feature_order.model.OrderStatus;
 import com.e_commerce.backend.feature_order.repository.OrderItemRepository;
 import com.e_commerce.backend.feature_order.repository.OrderRepository;
 import com.e_commerce.backend.feature_order.service.OrderService;
+import com.e_commerce.backend.feature_order.specification.OrderSpecification;
 import com.e_commerce.backend.feature_product.model.ProductEntity;
 import com.e_commerce.backend.feature_product.repository.ProductRepository;
 import com.e_commerce.backend.feature_user.model.UserEntity;
 import com.e_commerce.backend.feature_user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -138,6 +140,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Page<OrderEntity> getAllOrdersWithFilters(OrderStatus status, ZonedDateTime startDate,
                                                      ZonedDateTime endDate, Pageable pageable) {
-        return orderRepository.findWithFilters(status, startDate, endDate, pageable);
+        Specification<OrderEntity> spec = OrderSpecification.withFilters(status, startDate, endDate);
+        return orderRepository.findAll(spec, pageable);
     }
 }

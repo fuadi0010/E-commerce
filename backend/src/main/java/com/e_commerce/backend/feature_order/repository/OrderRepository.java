@@ -12,10 +12,13 @@ import org.springframework.stereotype.Repository;
 
 import java.time.ZonedDateTime;
 import java.util.Optional;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.lang.Nullable;
 import java.util.UUID;
 
 @Repository
-public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
+public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSpecificationExecutor<OrderEntity> {
 
     @Override
     @EntityGraph(attributePaths = {"items", "items.product", "user"})
@@ -28,15 +31,17 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
     @EntityGraph(attributePaths = {"items", "items.product", "user"})
     Page<OrderEntity> findByUserIdAndStatus(UUID userId, OrderStatus status, Pageable pageable);
 
-    // Rule 22: Filter by date range (Admin)
+    @Override
     @EntityGraph(attributePaths = {"items", "items.product", "user"})
-    @Query("SELECT o FROM OrderEntity o WHERE " +
-           "(:status IS NULL OR o.status = :status) AND " +
-           "(:startDate IS NULL OR o.createdAt >= :startDate) AND " +
-           "(:endDate IS NULL OR o.createdAt <= :endDate)")
-    Page<OrderEntity> findWithFilters(
-            @Param("status") OrderStatus status,
-            @Param("startDate") ZonedDateTime startDate,
-            @Param("endDate") ZonedDateTime endDate,
-            Pageable pageable);
+    Page<OrderEntity> findAll(@Nullable Specification<OrderEntity> spec, Pageable pageable);
+
+    // Backward-compatible delegating method
+    @Deprecated
+    default Page<OrderEntity> findWithFilters(
+            OrderStatus status,
+            ZonedDateTime startDate,
+            ZonedDateTime endDate,
+            Pageable pageable) {
+        return findAll(com.e_commerce.backend.feature_order.specification.OrderSpecification.withFilters(status, startDate, endDate), pageable);
+    }
 }

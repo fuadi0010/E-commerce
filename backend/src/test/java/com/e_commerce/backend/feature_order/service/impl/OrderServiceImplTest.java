@@ -24,6 +24,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -247,5 +251,21 @@ class OrderServiceImplTest {
         org.mockito.InOrder inOrder = inOrder(productRepository);
         inOrder.verify(productRepository).findByIdWithPessimisticLock(productId1);
         inOrder.verify(productRepository).findByIdWithPessimisticLock(productId2);
+    }
+
+    @Test
+    @DisplayName("getAllOrdersWithFilters: Berhasil memanggil orderRepository.findAll dengan Specification")
+    void getAllOrdersWithFilters_CallsRepositoryWithSpec() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<OrderEntity> mockPage = new PageImpl<>(List.of(new OrderEntity()));
+
+        when(orderRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenReturn(mockPage);
+
+        Page<OrderEntity> result = orderService.getAllOrdersWithFilters(OrderStatus.PENDING, null, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(orderRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
     }
 }

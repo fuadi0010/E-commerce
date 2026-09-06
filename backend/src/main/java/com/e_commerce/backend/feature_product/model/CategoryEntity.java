@@ -33,6 +33,10 @@ public class CategoryEntity extends BaseEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String name;
 
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
+
     @OneToMany(mappedBy = "category")
     @Builder.Default
     private List<ProductEntity> products = new ArrayList<>();

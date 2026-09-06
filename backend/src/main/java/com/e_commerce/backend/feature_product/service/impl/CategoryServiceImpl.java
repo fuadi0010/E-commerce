@@ -28,6 +28,7 @@ public class CategoryServiceImpl implements CategoryService {
         }
         CategoryEntity category = new CategoryEntity();
         category.setName(name);
+        category.setIsActive(true);
         return categoryRepository.save(category);
     }
 
@@ -35,6 +36,12 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional(readOnly = true)
     public List<CategoryEntity> getAllCategories() {
         return categoryRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryEntity> getActiveCategories() {
+        return categoryRepository.findByIsActiveTrueOrderByNameAsc();
     }
 
     @Override
@@ -66,8 +73,24 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    public void deleteCategory(UUID id) {
+    public CategoryEntity hideCategory(UUID id) {
         CategoryEntity category = getCategoryById(id);
-        categoryRepository.delete(category);
+        category.setIsActive(false);
+        return categoryRepository.save(category);
+    }
+
+    @Override
+    @Transactional
+    public CategoryEntity unhideCategory(UUID id) {
+        CategoryEntity category = getCategoryById(id);
+        category.setIsActive(true);
+        return categoryRepository.save(category);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCategory(UUID id) {
+        // Soft visibility: Ubah status menjadi inactive/hide, jangan physical delete
+        hideCategory(id);
     }
 }

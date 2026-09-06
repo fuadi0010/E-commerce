@@ -52,13 +52,13 @@ public class CategoryController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Daftar kategori", responses));
     }
 
-    // GET /api/categories/all — Public, unpaged list for dropdowns
+    // GET /api/categories/all — Public, active categories list for dropdowns
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAllCategoriesList() {
-        List<CategoryResponse> responses = categoryService.getAllCategories().stream()
+        List<CategoryResponse> responses = categoryService.getActiveCategories().stream()
                 .map(productMapper::toCategoryResponse)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Semua kategori", responses));
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Semua kategori aktif", responses));
     }
 
     // GET /api/categories/{id} — Public
@@ -80,11 +80,29 @@ public class CategoryController {
                 productMapper.toCategoryResponse(entity)));
     }
 
-    // DELETE /api/categories/{id} — Admin only
+    // PATCH /api/categories/{id}/hide — Admin only
+    @PatchMapping("/{id}/hide")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CategoryResponse>> hideCategory(@PathVariable UUID id) {
+        CategoryEntity entity = categoryService.hideCategory(id);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Kategori berhasil disembunyikan",
+                productMapper.toCategoryResponse(entity)));
+    }
+
+    // PATCH /api/categories/{id}/unhide — Admin only
+    @PatchMapping("/{id}/unhide")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CategoryResponse>> unhideCategory(@PathVariable UUID id) {
+        CategoryEntity entity = categoryService.unhideCategory(id);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Kategori berhasil diaktifkan kembali",
+                productMapper.toCategoryResponse(entity)));
+    }
+
+    // DELETE /api/categories/{id} — Admin only (soft hide)
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable UUID id) {
         categoryService.deleteCategory(id);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Kategori berhasil dihapus", null));
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Kategori berhasil disembunyikan", null));
     }
 }
