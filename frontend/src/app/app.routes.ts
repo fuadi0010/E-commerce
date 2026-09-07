@@ -19,6 +19,7 @@ import { ProductFormComponent } from './features/admin/pages/product-form/produc
 import { OrderListComponent } from './features/admin/pages/order-list/order-list.component';
 import { VoucherListComponent } from './features/admin/pages/voucher-list/voucher-list.component';
 import { UserListComponent } from './features/admin/pages/user-list/user-list.component';
+import { ReviewListComponent } from './features/admin/pages/review-list/review-list.component';
 import { OrderHistoryComponent } from './features/orders/pages/order-history/order-history.component';
 
 // Rule 57: Error page components
@@ -82,7 +83,8 @@ export const routes: Routes = [
       { path: 'products/edit/:id', component: ProductFormComponent },
       { path: 'orders', component: OrderListComponent },
       { path: 'vouchers', component: VoucherListComponent },
-      { path: 'users', component: UserListComponent }
+      { path: 'users', component: UserListComponent },
+      { path: 'reviews', component: ReviewListComponent }
     ]
   },
 

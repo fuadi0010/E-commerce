@@ -180,6 +180,21 @@ class ReviewServiceImplTest {
     }
 
     @Test
+    @DisplayName("getAllReviewsAdmin: sukses mengambil semua ulasan untuk admin")
+    void getAllReviewsAdmin_Success() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ReviewEntity> page = new PageImpl<>(List.of(review), pageable, 1);
+
+        when(reviewRepository.findAll(pageable)).thenReturn(page);
+
+        Page<ReviewEntity> result = reviewService.getAllReviewsAdmin(pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(reviewRepository, times(1)).findAll(pageable);
+    }
+
+    @Test
     @DisplayName("updateReview: sukses jika dilakukan oleh pemilik ulasan")
     void updateReview_Success_WhenOwner() {
         UpdateReviewRequest request = UpdateReviewRequest.builder()
@@ -260,5 +275,20 @@ class ReviewServiceImplTest {
         assertNotNull(summary);
         assertEquals(4.7, summary.getAverageRating());
         assertEquals(15L, summary.getTotalReviews());
+    }
+
+    @Test
+    @DisplayName("getAllReviewsAdmin: berhasil mengambil semua ulasan untuk admin secara berhalaman")
+    void getAllReviewsAdmin_Success() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ReviewEntity> page = new PageImpl<>(List.of(review), pageable, 1);
+
+        when(reviewRepository.findAll(pageable)).thenReturn(page);
+
+        Page<ReviewEntity> result = reviewService.getAllReviewsAdmin(pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(reviewRepository, times(1)).findAll(pageable);
     }
 }

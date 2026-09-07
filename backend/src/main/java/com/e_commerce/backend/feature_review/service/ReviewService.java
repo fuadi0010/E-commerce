@@ -24,4 +24,5 @@ public interface ReviewService {
     void deleteReview(UUID id, UUID userId, boolean isAdmin);
 
     ProductRatingSummaryResponse getProductRatingSummary(UUID productId);
+    Page<ReviewEntity> getAllReviewsAdmin(Pageable pageable);
 }

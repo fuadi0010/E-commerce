@@ -81,6 +81,18 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Daftar ulasan saya", page));
     }
 
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Mendapatkan seluruh ulasan dari semua produk untuk Admin secara berhalaman")
+    public ResponseEntity<ApiResponse<Page<ReviewResponse>>> getAllReviewsAdmin(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        Page<ReviewResponse> page = reviewService.getAllReviewsAdmin(pageable)
+                .map(reviewMapper::toResponse);
+
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Daftar ulasan pengguna", page));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Mendapatkan detail ulasan berdasarkan ID")
     public ResponseEntity<ApiResponse<ReviewResponse>> getReviewById(@PathVariable UUID id) {

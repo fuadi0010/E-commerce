@@ -23,6 +23,10 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, UUID> {
 
     @Override
     @EntityGraph(attributePaths = {"user", "product"})
+    Page<ReviewEntity> findAll(Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"user", "product"})
     Optional<ReviewEntity> findById(UUID id);
 
     @Query("SELECT AVG(r.rating) FROM ReviewEntity r WHERE r.product.id = :productId")

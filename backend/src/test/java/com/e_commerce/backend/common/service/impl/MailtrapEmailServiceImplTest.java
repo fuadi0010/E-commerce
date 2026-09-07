@@ -76,6 +76,24 @@ class MailtrapEmailServiceImplTest {
     }
 
     @Test
+    @DisplayName("sendEmail: When MailtrapClient is null but simulation is enabled -> Simulates email, logs, and returns true")
+    void sendEmail_NullClient_SimulationEnabled_ReturnsTrue() {
+        MailtrapEmailServiceImpl simulationService = new MailtrapEmailServiceImpl(null);
+        ReflectionTestUtils.setField(simulationService, "simulationEnabled", true);
+        ReflectionTestUtils.setField(simulationService, "fromEmail", "hello@demomailtrap.co");
+        ReflectionTestUtils.setField(simulationService, "fromName", "E-Commerce App");
+
+        boolean result = simulationService.sendEmail(
+                "buyer@example.com",
+                "Order Confirmation",
+                "Thank you!",
+                "Orders"
+        );
+
+        assertTrue(result);
+    }
+
+    @Test
     @DisplayName("sendEmail: When MailtrapClient throws exception -> Catches and returns false gracefully")
     void sendEmail_Exception_ReturnsFalse() {
         when(mailtrapClient.send(any(MailtrapMail.class))).thenThrow(new RuntimeException("Mailtrap connection timeout"));

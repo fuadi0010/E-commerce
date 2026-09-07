@@ -186,7 +186,10 @@ public class AuthServiceImpl implements AuthService {
 
             String resetLink = "http://localhost:4200/reset-password?token=" + token;
             
-            emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
+            boolean sent = emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
+            if (!sent) {
+                log.warn("Password reset token generated for user {}, but email delivery was not successful.", user.getEmail());
+            }
         });
         // Kita tidak throw exception bila user tidak ditemukan, demi mencegah enumeration.
     }

@@ -119,4 +119,10 @@ public class ReviewServiceImpl implements ReviewService {
                 .totalReviews(count != null ? count : 0L)
                 .build();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ReviewEntity> getAllReviewsAdmin(Pageable pageable) {
+        return reviewRepository.findAll(pageable);
+    }
 }

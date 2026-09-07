@@ -47,4 +47,11 @@ export class ReviewService {
   deleteReview(id: string): Observable<ApiResponse<void>> {
     return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`);
   }
+
+  getAllReviewsAdmin(page: number = 0, size: number = 10): Observable<ApiResponse<PageResponse<ReviewResponse>>> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+    return this.http.get<ApiResponse<PageResponse<ReviewResponse>>>(`${this.apiUrl}/admin`, { params });
+  }
 }

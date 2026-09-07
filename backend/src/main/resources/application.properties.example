@@ -63,6 +63,8 @@ app.jwt.expirationMs=3600000
 mailtrap.token=${MAILTRAP_API_TOKEN:your_mailtrap_api_token}
 mailtrap.from.email=${MAILTRAP_FROM_EMAIL:hello@demomailtrap.co}
 mailtrap.from.name=${MAILTRAP_FROM_NAME:E-Commerce App}
+# Simulasi dev: jika token kosong di lokal, cetak link email ke console log agar testing reset-password tidak terhambat
+mailtrap.simulation.enabled=${MAILTRAP_SIMULATION_ENABLED:true}
 
 # Spring Mail (SMTP Fallback/Legacy)
 spring.mail.host=${MAIL_HOST:sandbox.smtp.mailtrap.io}

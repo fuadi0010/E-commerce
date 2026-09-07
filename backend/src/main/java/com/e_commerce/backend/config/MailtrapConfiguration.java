@@ -18,13 +18,14 @@ public class MailtrapConfiguration {
     @Bean
     public MailtrapClient mailtrapClient() {
         if (token == null || token.trim().isEmpty()) {
-            log.warn("Mailtrap API token is not configured (mailtrap.token is empty). MailtrapClient will not be initialized.");
+            log.info("Mailtrap API token is not configured. Live email delivery is disabled. Fallback simulation mode will be used if enabled.");
             return null;
         }
         try {
             MailtrapConfig config = new MailtrapConfig.Builder()
                     .token(token.trim())
                     .build();
+            log.info("MailtrapClient initialized successfully with configured token.");
             return MailtrapClientFactory.createMailtrapClient(config);
         } catch (Exception e) {
             log.error("Failed to initialize MailtrapClient: {}", e.getMessage());

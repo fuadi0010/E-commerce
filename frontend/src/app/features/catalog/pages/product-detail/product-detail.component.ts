@@ -130,22 +130,65 @@ import { ReviewResponse, ProductRatingSummary } from '../../../../core/models/re
               </p>
             </div>
 
+            <!-- Product Specifications / Stock Quick Info -->
+            <div class="pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div class="p-3 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Status Stok</span>
+                <span class="font-extrabold mt-0.5 block" [ngClass]="product.stock > 0 ? 'text-emerald-700' : 'text-rose-600'">
+                  {{ product.stock > 0 ? product.stock + ' unit' : 'Stok Habis' }}
+                </span>
+              </div>
+              <div class="p-3 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Kategori</span>
+                <span class="font-bold text-slate-900 mt-0.5 block truncate">
+                  {{ product.category.name || 'Umum' }}
+                </span>
+              </div>
+              <div class="p-3 bg-slate-50/80 rounded-2xl border border-slate-100 col-span-2 sm:col-span-1">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Kondisi</span>
+                <span class="font-bold text-slate-900 mt-0.5 block">
+                  100% Baru & Segel
+                </span>
+              </div>
+            </div>
+
             <!-- Quantity Stepper & Add to Cart -->
             <div class="pt-6 border-t border-slate-100 space-y-4">
               
-              <!-- Stepper -->
-              <div *ngIf="product.stock > 0" class="flex items-center gap-4">
-                <span class="text-xs font-semibold text-slate-700">Jumlah Beli:</span>
-                <div class="inline-flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
-                  <button (click)="decrementQuantity()" [disabled]="selectedQuantity <= 1"
-                    class="w-8 h-8 rounded-lg bg-white shadow-xs text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center transition-colors btn-press">
-                    -
-                  </button>
-                  <span class="w-12 text-center text-xs font-bold text-slate-900">{{ selectedQuantity }}</span>
-                  <button (click)="incrementQuantity()" [disabled]="selectedQuantity >= product.stock"
-                    class="w-8 h-8 rounded-lg bg-white shadow-xs text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center transition-colors btn-press">
-                    +
-                  </button>
+              <!-- Stepper & Available Stock Info -->
+              <div *ngIf="product.stock > 0" class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                  <span class="text-xs font-semibold text-slate-700">Jumlah Beli:</span>
+                  <div class="inline-flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
+                    <button (click)="decrementQuantity()" [disabled]="selectedQuantity <= 1"
+                      class="w-8 h-8 rounded-lg bg-white shadow-xs text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center transition-colors btn-press">
+                      -
+                    </button>
+                    <span class="w-12 text-center text-xs font-bold text-slate-900">{{ selectedQuantity }}</span>
+                    <button (click)="incrementQuantity()" [disabled]="selectedQuantity >= product.stock"
+                      class="w-8 h-8 rounded-lg bg-white shadow-xs text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center transition-colors btn-press">
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Stock Counter Label -->
+                <div class="text-right">
+                  <span class="text-xs text-slate-500 font-medium block">
+                    Stok Tersedia: <strong class="text-slate-900 font-bold">{{ product.stock }} unit</strong>
+                  </span>
+                  <span *ngIf="product.stock <= 5" class="text-[10px] text-amber-600 font-semibold block">
+                    ⚠️ Sisa {{ product.stock }} unit lagi!
+                  </span>
+                </div>
+              </div>
+
+              <!-- Out of Stock Warning Banner -->
+              <div *ngIf="product.stock === 0" class="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center gap-3 text-rose-800">
+                <span class="text-xl">⚠️</span>
+                <div>
+                  <div class="text-xs font-bold text-rose-900">Stok Produk Habis (0 unit)</div>
+                  <div class="text-[11px] text-rose-600">Produk ini sementara tidak dapat dipesan karena persediaan inventaris sedang kosong.</div>
                 </div>
               </div>
 
@@ -155,12 +198,8 @@ import { ReviewResponse, ProductRatingSummary } from '../../../../core/models/re
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                 </svg>
-                <span>Tambah ke Keranjang Belanja</span>
+                <span>{{ product.stock > 0 ? 'Tambah ke Keranjang Belanja' : 'Stok Habis' }}</span>
               </button>
-
-              <p *ngIf="product.stock === 0" class="text-center text-xs font-semibold text-rose-600">
-                Maaf, persediaan stok produk ini saat ini sedang habis.
-              </p>
             </div>
 
             <!-- Guarantee Features -->
@@ -413,7 +452,7 @@ export class ProductDetailComponent implements OnInit {
       next: (response: ApiResponse<Product>) => {
         if (response.data) {
           this.product = response.data;
-          this.selectedQuantity = 1;
+          this.selectedQuantity = response.data.stock > 0 ? 1 : 0;
         }
       },
       error: () => {

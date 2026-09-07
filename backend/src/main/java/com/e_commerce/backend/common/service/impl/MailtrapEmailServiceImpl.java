@@ -23,6 +23,9 @@ public class MailtrapEmailServiceImpl implements EmailService {
     @Value("${mailtrap.from.name:E-Commerce App}")
     private String fromName;
 
+    @Value("${mailtrap.simulation.enabled:false}")
+    private boolean simulationEnabled;
+
     public MailtrapEmailServiceImpl(@Autowired(required = false) MailtrapClient mailtrapClient) {
         this.mailtrapClient = mailtrapClient;
     }
@@ -30,6 +33,18 @@ public class MailtrapEmailServiceImpl implements EmailService {
     @Override
     public boolean sendEmail(String to, String subject, String text, String category) {
         if (mailtrapClient == null) {
+            if (simulationEnabled) {
+                log.info("\n========================================================================"
+                        + "\n[DEV EMAIL SIMULATION — NO API TOKEN CONFIGURED]"
+                        + "\nTo      : {}"
+                        + "\nFrom    : {} <{}>"
+                        + "\nSubject : {}"
+                        + "\nCategory: {}"
+                        + "\nBody    :\n{}"
+                        + "\n========================================================================",
+                        to, fromName, fromEmail, subject, category != null ? category : "General", text);
+                return true;
+            }
             log.warn("Mailtrap client is not configured (missing or invalid API token). Skipping email to {}", to);
             return false;
         }
@@ -47,7 +62,7 @@ public class MailtrapEmailServiceImpl implements EmailService {
             log.info("Email successfully sent via Mailtrap to {}. Response: {}", to, response);
             return true;
         } catch (Exception e) {
-            log.error("Failed to send email via Mailtrap to {}: {}", to, e.getMessage(), e);
+            log.error("Failed to send email via Mailtrap to {}: {}", to, e.getMessage());
             return false;
         }
     }
