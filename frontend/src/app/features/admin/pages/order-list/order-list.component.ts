@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { OrderService } from '../../../../core/services/order.service';
 import { OrderResponse } from '../../../../core/models/order.model';
 import { PageResponse } from '../../../../core/models/product.model';
@@ -9,9 +10,18 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 @Component({
   selector: 'app-order-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="bg-white rounded-3xl shadow-ambient border border-slate-200/80 overflow-hidden">
+    <div class="space-y-4">
+      <!-- Back to Dashboard Navigation Link -->
+      <a routerLink="/admin/dashboard" class="text-xs font-semibold text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        <span>Kembali ke Dashboard</span>
+      </a>
+
+      <div class="bg-white rounded-3xl shadow-ambient border border-slate-200/80 overflow-hidden">
       <!-- Header -->
       <div class="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -27,9 +37,9 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
       </div>
 
       <!-- Filters Toolbar -->
-      <div class="p-4 bg-slate-50/60 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+      <div class="p-4 bg-slate-50/60 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <!-- Status Filter Tabs / Select -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
           <button *ngFor="let s of statusOptions"
             (click)="selectStatus(s.value)"
             [ngClass]="selectedStatus === s.value ? 'bg-slate-900 text-white font-bold shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
@@ -38,16 +48,40 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
           </button>
         </div>
 
-        <!-- Page Size Selector -->
-        <div class="flex items-center gap-2 text-xs text-slate-500 ml-auto">
-          <span>Tampilkan:</span>
-          <select [(ngModel)]="pageSize" (change)="onPageSizeChange()"
-            class="text-xs border border-slate-200 rounded-xl py-1 px-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100">
-            <option [ngValue]="5">5</option>
-            <option [ngValue]="10">10</option>
-            <option [ngValue]="20">20</option>
-            <option [ngValue]="50">50</option>
-          </select>
+        <!-- Date Range Filter & Page Size Selector -->
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Date Range Inputs -->
+          <div class="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs shadow-sm">
+            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <input type="date" [(ngModel)]="startDate" (change)="onDateFilterChange()"
+              class="text-xs border-0 p-0 text-slate-700 bg-transparent focus:ring-0 focus:outline-none cursor-pointer"
+              title="Tanggal Mulai">
+            <span class="text-slate-300 font-bold">&ndash;</span>
+            <input type="date" [(ngModel)]="endDate" (change)="onDateFilterChange()"
+              class="text-xs border-0 p-0 text-slate-700 bg-transparent focus:ring-0 focus:outline-none cursor-pointer"
+              title="Tanggal Akhir">
+            <button *ngIf="startDate || endDate" (click)="clearDateFilter()"
+              title="Hapus filter tanggal"
+              class="ml-1 p-1 text-slate-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-colors">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Page Size Selector -->
+          <div class="flex items-center gap-2 text-xs text-slate-500">
+            <span>Tampilkan:</span>
+            <select [(ngModel)]="pageSize" (change)="onPageSizeChange()"
+              class="text-xs border border-slate-200 rounded-xl py-1.5 px-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 shadow-sm">
+              <option [ngValue]="5">5</option>
+              <option [ngValue]="10">10</option>
+              <option [ngValue]="20">20</option>
+              <option [ngValue]="50">50</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -68,7 +102,13 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
           </svg>
         </div>
         <h3 class="text-sm font-bold text-slate-900">Tidak Ada Pesanan Ditemukan</h3>
-        <p class="text-xs text-slate-400">Belum ada pesanan dengan filter status yang dipilih.</p>
+        <p class="text-xs text-slate-400">Belum ada pesanan yang sesuai dengan filter yang dipilih.</p>
+        <div *ngIf="startDate || endDate || selectedStatus !== 'ALL'">
+          <button (click)="resetAllFilters()"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors">
+            Reset Semua Filter
+          </button>
+        </div>
       </div>
 
       <!-- Orders Table -->
@@ -163,6 +203,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
         </div>
       </div>
     </div>
+  </div>
 
     <!-- Status Update Modal -->
     <div *ngIf="isModalOpen && selectedOrder" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4">
@@ -219,6 +260,8 @@ export class OrderListComponent implements OnInit {
   currentPage = 0;
   pageSize = 10;
   selectedStatus = 'ALL';
+  startDate = '';
+  endDate = '';
 
   readonly statusOptions = [
     { label: 'Semua Status', value: 'ALL' },
@@ -226,10 +269,11 @@ export class OrderListComponent implements OnInit {
     { label: 'Paid', value: 'PAID' },
     { label: 'Shipped', value: 'SHIPPED' },
     { label: 'Delivered', value: 'DELIVERED' },
+    { label: 'Completed', value: 'COMPLETED' },
     { label: 'Cancelled', value: 'CANCELLED' }
   ];
 
-  readonly updateableStatuses = ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+  readonly updateableStatuses = ['PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'];
 
   // Modal state
   isModalOpen = false;
@@ -242,7 +286,20 @@ export class OrderListComponent implements OnInit {
 
   loadOrders(): void {
     this.isLoading = true;
-    this.orderService.getAllOrdersAdmin(this.currentPage, this.pageSize, this.selectedStatus)
+
+    let isoStart: string | undefined;
+    if (this.startDate) {
+      const d = new Date(this.startDate + 'T00:00:00');
+      isoStart = isNaN(d.getTime()) ? undefined : d.toISOString();
+    }
+
+    let isoEnd: string | undefined;
+    if (this.endDate) {
+      const d = new Date(this.endDate + 'T23:59:59.999');
+      isoEnd = isNaN(d.getTime()) ? undefined : d.toISOString();
+    }
+
+    this.orderService.getAllOrdersAdmin(this.currentPage, this.pageSize, this.selectedStatus, isoStart, isoEnd)
       .subscribe({
         next: (res) => {
           if (res.data) {
@@ -256,6 +313,30 @@ export class OrderListComponent implements OnInit {
           this.isLoading = false;
         }
       });
+  }
+
+  onDateFilterChange(): void {
+    if (this.startDate && this.endDate && this.startDate > this.endDate) {
+      this.toastService.warning('Filter Tanggal', 'Tanggal awal tidak boleh melebihi tanggal akhir');
+      return;
+    }
+    this.currentPage = 0;
+    this.loadOrders();
+  }
+
+  clearDateFilter(): void {
+    this.startDate = '';
+    this.endDate = '';
+    this.currentPage = 0;
+    this.loadOrders();
+  }
+
+  resetAllFilters(): void {
+    this.selectedStatus = 'ALL';
+    this.startDate = '';
+    this.endDate = '';
+    this.currentPage = 0;
+    this.loadOrders();
   }
 
   selectStatus(status: string): void {
@@ -295,6 +376,7 @@ export class OrderListComponent implements OnInit {
       case 'SHIPPED':
         return 'bg-indigo-50 text-indigo-700 border-indigo-200/60';
       case 'DELIVERED':
+      case 'COMPLETED':
         return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
       case 'CANCELLED':
         return 'bg-rose-50 text-rose-700 border-rose-200/60';
@@ -308,7 +390,8 @@ export class OrderListComponent implements OnInit {
       case 'PENDING': return 'bg-amber-500';
       case 'PAID': return 'bg-blue-500';
       case 'SHIPPED': return 'bg-indigo-500';
-      case 'DELIVERED': return 'bg-emerald-500';
+      case 'DELIVERED':
+      case 'COMPLETED': return 'bg-emerald-500';
       case 'CANCELLED': return 'bg-rose-500';
       default: return 'bg-slate-400';
     }

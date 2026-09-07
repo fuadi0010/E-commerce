@@ -92,7 +92,7 @@ import { NavbarComponent } from '../navbar/navbar.component';
                 <div class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm">
                   A
                 </div>
-                <span class="font-extrabold text-base tracking-tight text-slate-900">AURA Commerce</span>
+                <span class="font-extrabold text-base tracking-tight text-slate-900">Borkat Serba Ada</span>
               </div>
               <p class="text-xs text-slate-500 max-w-sm leading-relaxed">
                 Platform e-commerce generasi berikutnya yang dirancang untuk pengalaman belanja digital yang mulus, aman, dan memuaskan.
@@ -105,7 +105,7 @@ import { NavbarComponent } from '../navbar/navbar.component';
               <ul class="space-y-2 text-xs text-slate-600">
                 <li><a routerLink="/catalog" class="hover:text-indigo-600 transition-colors">Katalog Produk</a></li>
                 <li><a routerLink="/cart" class="hover:text-indigo-600 transition-colors">Keranjang Belanja</a></li>
-                <li><a routerLink="/dashboard" class="hover:text-indigo-600 transition-colors">Riwayat Pesanan</a></li>
+                <li><a routerLink="/orders" class="hover:text-indigo-600 transition-colors">Riwayat Pesanan</a></li>
               </ul>
             </div>
 
@@ -123,7 +123,7 @@ import { NavbarComponent } from '../navbar/navbar.component';
 
           <div class="mt-10 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p class="text-xs text-slate-400">
-              &copy; 2026 AURA Commerce. Hak Cipta Dilindungi.
+              &copy; 2026 Borkat Serba Ada. Hak Cipta Dilindungi.
             </p>
             <div class="flex items-center gap-4 text-xs text-slate-400">
               <span class="hover:text-slate-600 cursor-pointer">Privasi</span>

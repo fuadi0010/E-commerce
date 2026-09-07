@@ -57,8 +57,9 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String search,
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<UserResponse> users = userService.getAllUsers(pageable);
+        Page<UserResponse> users = userService.getAllUsers(search, pageable);
         return ResponseEntity.ok(ApiResponse.success(users, "Daftar pengguna"));
     }
 

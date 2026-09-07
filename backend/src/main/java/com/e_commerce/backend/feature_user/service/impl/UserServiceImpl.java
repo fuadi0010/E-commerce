@@ -82,11 +82,23 @@ public class UserServiceImpl implements UserService{
     @Override
     @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable)
-                .map(user -> {
-                    UserProfileEntity profile = userProfileRepository.findByUser(user).orElse(null);
-                    return mapToUserResponse(user, profile);
-                });
+        return getAllUsers(null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getAllUsers(String search, Pageable pageable) {
+        Page<UserEntity> userPage;
+        if (search != null && !search.trim().isEmpty()) {
+            userPage = userRepository.findAllWithSearch(search.trim(), pageable);
+        } else {
+            userPage = userRepository.findAll(pageable);
+        }
+
+        return userPage.map(user -> {
+            UserProfileEntity profile = userProfileRepository.findByUser(user).orElse(null);
+            return mapToUserResponse(user, profile);
+        });
     }
 
     @Override

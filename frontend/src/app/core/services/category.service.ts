@@ -39,6 +39,14 @@ export class CategoryService {
     return this.http.put<ApiResponse<Category>>(`${this.apiUrl}/${id}`, request);
   }
 
+  hideCategory(id: string): Observable<ApiResponse<Category>> {
+    return this.http.patch<ApiResponse<Category>>(`${this.apiUrl}/${id}/hide`, {});
+  }
+
+  unhideCategory(id: string): Observable<ApiResponse<Category>> {
+    return this.http.patch<ApiResponse<Category>>(`${this.apiUrl}/${id}/unhide`, {});
+  }
+
   deleteCategory(id: string): Observable<ApiResponse<void>> {
     return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`);
   }

@@ -64,4 +64,24 @@ class UploadControllerTest {
 
         verify(fileStorageService, times(1)).storeFile(file);
     }
+
+    @Test
+    @DisplayName("uploadFile - PDF document returns 201 Created with full download URL")
+    void uploadFile_PdfDocument_Success() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "payment-proof.pdf", "application/pdf", "%PDF-1.4 sample content".getBytes()
+        );
+
+        when(fileStorageService.storeFile(file)).thenReturn("proof-456.pdf");
+
+        ResponseEntity<ApiResponse<String>> response = uploadController.uploadFile(file);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(201, response.getBody().getStatus());
+        assertEquals("http://localhost:8080/uploads/proof-456.pdf", response.getBody().getData());
+
+        verify(fileStorageService, times(1)).storeFile(file);
+    }
 }

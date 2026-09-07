@@ -179,6 +179,22 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("getAllUsers - returns filtered list when search keyword provided")
+    void getAllUsers_WithSearch_Success() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<UserEntity> userPage = new PageImpl<>(List.of(mockUser), pageable, 1);
+
+        when(userRepository.findAllWithSearch("John", pageable)).thenReturn(userPage);
+        when(userProfileRepository.findByUser(mockUser)).thenReturn(Optional.of(mockProfile));
+
+        Page<UserResponse> result = userService.getAllUsers("John", pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals("test@example.com", result.getContent().get(0).getEmail());
+    }
+
+    @Test
     @DisplayName("getUserById - returns user details when found")
     void getUserById_Success() {
         UUID id = mockUser.getId();

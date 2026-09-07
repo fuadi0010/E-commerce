@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -267,5 +268,59 @@ class OrderServiceImplTest {
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
         verify(orderRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("getAllOrdersWithFilters: Berhasil dengan rentang tanggal startDate dan endDate")
+    void getAllOrdersWithFilters_WithDateRange_CallsRepositoryWithSpec() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<OrderEntity> mockPage = new PageImpl<>(List.of(new OrderEntity()));
+        ZonedDateTime startDate = ZonedDateTime.now().minusDays(3);
+        ZonedDateTime endDate = ZonedDateTime.now();
+
+        when(orderRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenReturn(mockPage);
+
+        Page<OrderEntity> result = orderService.getAllOrdersWithFilters(OrderStatus.PAID, startDate, endDate, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(orderRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("getOrdersByUserAndStatus: Berhasil dengan filter status memanggil findByUserIdAndStatus")
+    void getOrdersByUserAndStatus_WithStatus_CallsFindByUserIdAndStatus() {
+        UUID userId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<OrderEntity> mockPage = new PageImpl<>(List.of(new OrderEntity()));
+
+        when(orderRepository.findByUserIdAndStatus(userId, OrderStatus.PAID, pageable))
+                .thenReturn(mockPage);
+
+        Page<OrderEntity> result = orderService.getOrdersByUserAndStatus(userId, OrderStatus.PAID, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(orderRepository).findByUserIdAndStatus(userId, OrderStatus.PAID, pageable);
+        verify(orderRepository, never()).findByUserId(userId, pageable);
+    }
+
+    @Test
+    @DisplayName("getOrdersByUserAndStatus: Berhasil tanpa status memanggil findByUserId")
+    void getOrdersByUserAndStatus_WithoutStatus_CallsFindByUserId() {
+        UUID userId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<OrderEntity> mockPage = new PageImpl<>(List.of(new OrderEntity()));
+
+        when(orderRepository.findByUserId(userId, pageable))
+                .thenReturn(mockPage);
+
+        Page<OrderEntity> result = orderService.getOrdersByUserAndStatus(userId, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(orderRepository).findByUserId(userId, pageable);
+        verify(orderRepository, never()).findByUserIdAndStatus(any(), any(), any());
     }
 }

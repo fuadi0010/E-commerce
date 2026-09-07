@@ -54,6 +54,9 @@ public class SecurityConfig {
                     .requestMatchers("/uploads/**").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/product/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/vouchers/active").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/vouchers/validate").permitAll()
                     .anyRequest().authenticated()
             );
 

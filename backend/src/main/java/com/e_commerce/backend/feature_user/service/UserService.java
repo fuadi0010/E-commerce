@@ -13,6 +13,7 @@ public interface UserService {
     UserProfileResponse updateMyProfile(UpdateProfileRequest request);
 
     Page<UserResponse> getAllUsers(Pageable pageable);
+    Page<UserResponse> getAllUsers(String search, Pageable pageable);
     UserResponse getUserById(UUID id);
     void deleteUser(UUID id);
 }

@@ -105,6 +105,12 @@ import { PageResponse } from '../../../../core/models/product.model';
       <div class="flex flex-wrap gap-3">
         <!-- Admin Shortcuts -->
         <ng-container *ngIf="isAdmin">
+          <a routerLink="/admin/products/new" class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all btn-press">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span>Tambah Produk</span>
+          </a>
           <a routerLink="/admin/products" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all btn-press">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
@@ -164,6 +170,9 @@ import { PageResponse } from '../../../../core/models/product.model';
           <div class="flex items-center gap-3">
             <a *ngIf="isAdmin" routerLink="/admin/orders" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold transition-colors">
               Buka Manajemen Pesanan &rarr;
+            </a>
+            <a *ngIf="!isAdmin" routerLink="/orders" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold transition-colors">
+              Lihat Semua Pesanan &rarr;
             </a>
             <button (click)="loadOrders()" 
               class="text-xs text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1.5 transition-colors">

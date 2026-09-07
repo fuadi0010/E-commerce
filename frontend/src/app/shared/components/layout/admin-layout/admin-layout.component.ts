@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
+import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
   selector: 'app-admin-layout',
@@ -70,16 +71,38 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
             </svg>
             <span>Manajemen Pesanan</span>
           </a>
+
+          <a routerLink="/admin/vouchers" routerLinkActive="bg-indigo-600 text-white font-bold" (click)="closeSidebarOnMobile()"
+            class="flex items-center gap-3 px-3.5 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-slate-900 rounded-xl transition-colors">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+            </svg>
+            <span>Voucher & Promo</span>
+          </a>
+
+          <a routerLink="/admin/users" routerLinkActive="bg-indigo-600 text-white font-bold" (click)="closeSidebarOnMobile()"
+            class="flex items-center gap-3 px-3.5 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-slate-900 rounded-xl transition-colors">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+            </svg>
+            <span>Manajemen Pengguna</span>
+          </a>
         </nav>
 
         <!-- Sidebar Footer -->
-        <div class="p-4 border-t border-slate-800">
+        <div class="p-4 border-t border-slate-800 space-y-1">
           <a routerLink="/catalog" (click)="closeSidebarOnMobile()" class="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-900 rounded-xl transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
             </svg>
             <span>Kembali ke Toko</span>
           </a>
+          <button (click)="logout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-colors text-left">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+            <span>Logout</span>
+          </button>
         </div>
 
       </aside>
@@ -102,6 +125,12 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
             <div class="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200/70 text-indigo-700 font-bold text-xs flex items-center justify-center">
               A
             </div>
+            <button (click)="logout()" title="Logout" class="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+              </svg>
+              <span class="text-xs font-semibold hidden sm:inline">Logout</span>
+            </button>
           </div>
         </header>
 
@@ -116,6 +145,9 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
   `
 })
 export class AdminLayoutComponent {
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
   isSidebarOpen = false;
 
   toggleSidebar(): void {
@@ -124,5 +156,16 @@ export class AdminLayoutComponent {
 
   closeSidebarOnMobile(): void {
     this.isSidebarOpen = false;
+  }
+
+  logout(): void {
+    this.authService.logout().subscribe({
+      next: () => {
+        this.router.navigate(['/login']);
+      },
+      error: () => {
+        this.router.navigate(['/login']);
+      }
+    });
   }
 }

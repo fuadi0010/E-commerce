@@ -18,11 +18,11 @@ import { CartService } from '../../../core/services/cart.service';
         <div class="flex items-center gap-6">
           <a routerLink="/catalog" (click)="closeMobileMenu()" class="flex items-center gap-2.5 group">
             <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
-              <span>A</span>
+              <span>B</span>
             </div>
             <div class="flex flex-col">
-              <span class="font-extrabold text-base tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">AURA</span>
-              <span class="text-[10px] tracking-widest text-slate-600 uppercase font-semibold -mt-1">Commerce</span>
+              <span class="font-extrabold text-base tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">Borkat</span>
+              <span class="text-[10px] tracking-widest text-slate-600 uppercase font-semibold -mt-1">Serba Ada</span>
             </div>
           </a>
 
@@ -36,6 +36,10 @@ import { CartService } from '../../../core/services/cart.service';
               <a routerLink="/dashboard" routerLinkActive="text-indigo-600 bg-indigo-50/70 font-semibold"
                 class="px-3.5 py-1.5 rounded-lg text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition-colors">
                 Dashboard
+              </a>
+              <a routerLink="/orders" routerLinkActive="text-indigo-600 bg-indigo-50/70 font-semibold"
+                class="px-3.5 py-1.5 rounded-lg text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition-colors">
+                Pesanan Saya
               </a>
               <a routerLink="/profile" routerLinkActive="text-indigo-600 bg-indigo-50/70 font-semibold"
                 class="px-3.5 py-1.5 rounded-lg text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition-colors">
@@ -150,6 +154,10 @@ import { CartService } from '../../../core/services/cart.service';
             <a routerLink="/dashboard" (click)="closeMobileMenu()" routerLinkActive="text-indigo-600 bg-indigo-50 font-semibold"
               class="px-3.5 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-100 transition-colors">
               Dashboard Saya
+            </a>
+            <a routerLink="/orders" (click)="closeMobileMenu()" routerLinkActive="text-indigo-600 bg-indigo-50 font-semibold"
+              class="px-3.5 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-100 transition-colors">
+              Pesanan Saya
             </a>
             <a routerLink="/profile" (click)="closeMobileMenu()" routerLinkActive="text-indigo-600 bg-indigo-50 font-semibold"
               class="px-3.5 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-100 transition-colors">

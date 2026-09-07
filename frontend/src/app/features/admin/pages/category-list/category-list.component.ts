@@ -11,8 +11,16 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
   template: `
-    <div class="bg-white rounded-3xl shadow-ambient border border-slate-200/80 overflow-hidden">
-      <div class="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="space-y-4">
+      <a routerLink="/admin/dashboard" class="text-xs font-semibold text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        <span>Kembali ke Dashboard</span>
+      </a>
+
+      <div class="bg-white rounded-3xl shadow-ambient border border-slate-200/80 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 class="text-base font-bold text-slate-900">Manajemen Kategori</h2>
           <p class="text-xs text-slate-400 mt-0.5">Kelola kategori produk untuk pengelompokan katalog toko</p>
@@ -64,6 +72,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
             <tr>
               <th scope="col" class="px-6 py-3.5 w-16">No</th>
               <th scope="col" class="px-6 py-3.5">Nama Kategori</th>
+              <th scope="col" class="px-6 py-3.5">Status</th>
               <th scope="col" class="px-6 py-3.5">ID Kategori</th>
               <th scope="col" class="px-6 py-3.5 text-right">Aksi</th>
             </tr>
@@ -92,6 +101,18 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
                 </div>
               </td>
 
+              <!-- Status Kategori -->
+              <td class="px-6 py-4">
+                <span *ngIf="category.isActive !== false"
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Aktif
+                </span>
+                <span *ngIf="category.isActive === false"
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                  Disembunyikan
+                </span>
+              </td>
+
               <td class="px-6 py-4 font-mono text-slate-400">
                 {{ category.id }}
               </td>
@@ -102,9 +123,13 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
                   class="text-indigo-600 hover:text-indigo-900 text-xs font-bold px-2.5 py-1 rounded-lg hover:bg-indigo-50 transition-colors">
                   Edit
                 </button>
-                <button (click)="deleteCategory(category)"
-                  class="text-rose-600 hover:text-rose-900 text-xs font-bold px-2.5 py-1 rounded-lg hover:bg-rose-50 transition-colors">
-                  Hapus
+                <button *ngIf="category.isActive !== false" (click)="hideCategory(category)"
+                  class="text-amber-600 hover:text-amber-850 text-xs font-bold px-2.5 py-1 rounded-lg hover:bg-amber-50 transition-colors">
+                  Hide
+                </button>
+                <button *ngIf="category.isActive === false" (click)="unhideCategory(category)"
+                  class="text-emerald-600 hover:text-emerald-900 text-xs font-bold px-2.5 py-1 rounded-lg hover:bg-emerald-50 transition-colors">
+                  Aktifkan
                 </button>
               </td>
             </tr>
@@ -140,6 +165,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
         </div>
       </div>
     </div>
+  </div>
   `
 })
 export class CategoryListComponent implements OnInit {
@@ -233,17 +259,29 @@ export class CategoryListComponent implements OnInit {
     });
   }
 
-  deleteCategory(category: Category) {
-    if (confirm(`Apakah Anda yakin ingin menghapus kategori "${category.name}"?`)) {
-      this.categoryService.deleteCategory(category.id).subscribe({
+  hideCategory(category: Category) {
+    if (confirm(`Apakah Anda yakin ingin menyembunyikan kategori "${category.name}"?\nKategori ini tidak akan muncul pada pilihan produk baru.`)) {
+      this.categoryService.hideCategory(category.id).subscribe({
         next: () => {
-          this.toastService.success('Sukses', `Kategori "${category.name}" berhasil dihapus.`);
+          this.toastService.success('Sukses', `Kategori "${category.name}" berhasil disembunyikan.`);
           this.loadCategories();
         },
         error: (err) => {
-          this.toastService.error('Error', err.error?.message || 'Gagal menghapus kategori.');
+          this.toastService.error('Error', err.error?.message || 'Gagal menyembunyikan kategori.');
         }
       });
     }
+  }
+
+  unhideCategory(category: Category) {
+    this.categoryService.unhideCategory(category.id).subscribe({
+      next: () => {
+        this.toastService.success('Sukses', `Kategori "${category.name}" berhasil diaktifkan kembali.`);
+        this.loadCategories();
+      },
+      error: (err) => {
+        this.toastService.error('Error', err.error?.message || 'Gagal mengaktifkan kategori.');
+      }
+    });
   }
 }

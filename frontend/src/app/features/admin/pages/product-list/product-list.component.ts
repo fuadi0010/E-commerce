@@ -12,20 +12,28 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
   template: `
-    <div class="bg-white rounded-3xl shadow-ambient border border-slate-200/80 overflow-hidden">
-      <!-- Header -->
-      <div class="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 class="text-base font-bold text-slate-900">Katalog Produk (Admin)</h2>
-          <p class="text-xs text-slate-400 mt-0.5">Kelola data inventaris, stok, harga, dan kategori produk</p>
+    <div class="space-y-4">
+      <a routerLink="/admin/dashboard" class="text-xs font-semibold text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        <span>Kembali ke Dashboard</span>
+      </a>
+
+      <div class="bg-white rounded-3xl shadow-ambient border border-slate-200/80 overflow-hidden">
+        <!-- Header -->
+        <div class="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Katalog Produk (Admin)</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Kelola data inventaris, stok, harga, dan kategori produk</p>
+          </div>
+          <a routerLink="/admin/products/new" class="inline-flex items-center justify-center px-4 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all gap-2 btn-press">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span>Tambah Produk Baru</span>
+          </a>
         </div>
-        <a routerLink="/admin/products/new" class="inline-flex items-center justify-center px-4 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all gap-2 btn-press">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
-          </svg>
-          <span>Tambah Produk Baru</span>
-        </a>
-      </div>
 
       <!-- Filters & Search Toolbar (Rule 51 & 52) -->
       <div class="p-4 bg-slate-50/60 border-b border-slate-100 flex flex-wrap items-center gap-3">
@@ -170,6 +178,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
         </div>
       </div>
     </div>
+  </div>
   `
 })
 export class ProductListComponent implements OnInit {

@@ -17,3 +17,13 @@ export interface UpdateProfileRequest {
   name?: string;
   phoneNumber?: string;
 }
+
+export interface UserResponse {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  address?: string;
+  roles: string[];
+  createdAt: string;
+}

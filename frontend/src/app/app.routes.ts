@@ -17,6 +17,9 @@ import { CategoryCreateComponent } from './features/admin/pages/category-create/
 import { ProductListComponent } from './features/admin/pages/product-list/product-list.component';
 import { ProductFormComponent } from './features/admin/pages/product-form/product-form.component';
 import { OrderListComponent } from './features/admin/pages/order-list/order-list.component';
+import { VoucherListComponent } from './features/admin/pages/voucher-list/voucher-list.component';
+import { UserListComponent } from './features/admin/pages/user-list/user-list.component';
+import { OrderHistoryComponent } from './features/orders/pages/order-history/order-history.component';
 
 // Rule 57: Error page components
 import { NotFoundComponent } from './shared/components/error-pages/not-found/not-found.component';
@@ -59,6 +62,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardComponent },
+      { path: 'orders', component: OrderHistoryComponent },
       { path: 'profile', component: ProfileComponent }
     ]
   },
@@ -76,7 +80,9 @@ export const routes: Routes = [
       { path: 'products', component: ProductListComponent },
       { path: 'products/new', component: ProductFormComponent },
       { path: 'products/edit/:id', component: ProductFormComponent },
-      { path: 'orders', component: OrderListComponent }
+      { path: 'orders', component: OrderListComponent },
+      { path: 'vouchers', component: VoucherListComponent },
+      { path: 'users', component: UserListComponent }
     ]
   },
 
