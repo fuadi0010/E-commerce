@@ -98,11 +98,19 @@ public class ProductController {
                 productMapper.toResponse(entity)));
     }
 
-    // DELETE /api/products/{id} — Admin only (soft delete)
+    // DELETE /api/products/{id} — Admin only (soft delete / hide)
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> softDeleteProduct(@PathVariable UUID id) {
         productService.softDeleteProduct(id);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil dihapus", null));
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil disembunyikan dari katalog", null));
+    }
+
+    // PATCH /api/products/{id}/hide — Admin only (semantic alias untuk menyembunyikan produk)
+    @PatchMapping("/{id}/hide")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> hideProduct(@PathVariable UUID id) {
+        productService.softDeleteProduct(id);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil disembunyikan dari katalog", null));
     }
 }

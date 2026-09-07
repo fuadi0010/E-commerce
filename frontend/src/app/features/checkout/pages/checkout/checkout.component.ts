@@ -212,15 +212,34 @@ import { Voucher, VoucherCalculationResponse } from '../../../../core/models/vou
                 </button>
               </div>
 
-              <!-- Quick Clickable Promo Pills -->
-              <div *ngIf="!appliedVoucher && activeVouchers.length > 0" class="pt-1">
-                <span class="text-[10px] text-slate-400 block mb-1 font-medium">Voucher promo yang tersedia:</span>
-                <div class="flex flex-wrap gap-1.5">
-                  <button *ngFor="let av of activeVouchers.slice(0, 4)" type="button"
-                    (click)="selectVoucherPill(av.code)"
-                    class="text-[10px] font-mono font-bold px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/60 transition-colors">
-                    🏷️ {{ av.code }}
-                  </button>
+              <!-- Quick Clickable Promo Pills with Detail Action (FIX-006) -->
+              <div *ngIf="!appliedVoucher && activeVouchers.length > 0" class="pt-1 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] text-slate-400 font-medium">Voucher promo yang tersedia:</span>
+                  <span class="text-[10px] text-indigo-600 font-medium">Pilih voucher atau periksa syarat</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <div *ngFor="let av of activeVouchers.slice(0, 4)"
+                    class="inline-flex items-stretch rounded-xl border border-indigo-200/80 bg-indigo-50/60 shadow-sm overflow-hidden text-xs">
+                    <!-- Tombol Terapkan Voucher -->
+                    <button type="button"
+                      (click)="selectVoucherPill(av.code)"
+                      [title]="'Terapkan kode ' + av.code"
+                      class="px-2.5 py-1.5 font-mono font-bold text-indigo-700 hover:text-white hover:bg-indigo-600 transition-colors flex items-center gap-1.5">
+                      <span>🏷️</span>
+                      <span>{{ av.code }}</span>
+                    </button>
+                    <!-- Tombol Lihat Detail / Syarat Promo -->
+                    <button type="button"
+                      (click)="openVoucherDetail(av, $event)"
+                      [title]="'Lihat syarat & detail voucher ' + av.code"
+                      class="px-2 py-1.5 bg-white/70 hover:bg-indigo-100 text-indigo-600 border-l border-indigo-200/80 transition-colors flex items-center gap-1 font-semibold text-[11px]">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <span>Detail</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -282,6 +301,102 @@ import { Voucher, VoucherCalculationResponse } from '../../../../core/models/vou
 
       </form>
 
+      <!-- MODAL DETAIL KODE PROMO (FIX-006) -->
+      <div *ngIf="showVoucherDetailModal && selectedVoucherForDetail" 
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+          
+          <!-- Header -->
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-base">
+                🎟️
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">Detail Voucher Promo</h3>
+                <span class="text-[11px] text-slate-400">Syarat dan ketentuan kupon diskon</span>
+              </div>
+            </div>
+            <button type="button" (click)="closeVoucherDetailModal()" 
+              class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
+              ✕
+            </button>
+          </div>
+
+          <!-- Voucher Code Card -->
+          <div class="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] uppercase tracking-wider font-semibold text-indigo-600 block">Kode Kupon</span>
+              <span class="text-lg font-black font-mono text-indigo-950">{{ selectedVoucherForDetail.code }}</span>
+            </div>
+            <div class="px-3 py-1 rounded-full bg-indigo-600 text-white font-bold text-xs">
+              {{ selectedVoucherForDetail.discountType === 'PERCENTAGE' ? selectedVoucherForDetail.discountValue + '% OFF' : 'Potongan Rp ' + (selectedVoucherForDetail.discountValue | number:'1.0-0') }}
+            </div>
+          </div>
+
+          <!-- Description -->
+          <p *ngIf="selectedVoucherForDetail.description" class="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+            {{ selectedVoucherForDetail.description }}
+          </p>
+
+          <!-- Key Details Grid -->
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="text-[10px] text-slate-400 block font-medium">Min. Pembelian</span>
+              <span class="font-bold text-slate-800">
+                {{ selectedVoucherForDetail.minPurchase > 0 ? ('Rp ' + (selectedVoucherForDetail.minPurchase | number:'1.0-0')) : 'Tanpa Minimum' }}
+              </span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="text-[10px] text-slate-400 block font-medium">Maks. Diskon</span>
+              <span class="font-bold text-slate-800">
+                {{ selectedVoucherForDetail.maxDiscount ? ('Rp ' + (selectedVoucherForDetail.maxDiscount | number:'1.0-0')) : 'Tanpa Batas' }}
+              </span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="text-[10px] text-slate-400 block font-medium">Masa Berlaku</span>
+              <span class="font-bold text-slate-800">
+                {{ selectedVoucherForDetail.validUntil | date:'dd MMM yyyy, HH:mm' }}
+              </span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="text-[10px] text-slate-400 block font-medium">Sisa Kuota</span>
+              <span class="font-bold text-emerald-600">
+                {{ (selectedVoucherForDetail.quota - selectedVoucherForDetail.usedCount) > 0 ? ((selectedVoucherForDetail.quota - selectedVoucherForDetail.usedCount) + ' Kupon') : 'Habis' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Status Belanja User Saat Ini (Informatif, tanpa error toast) -->
+          <div class="p-3 rounded-xl border text-[11px]"
+            [ngClass]="cartService.cartTotalPrice() >= selectedVoucherForDetail.minPurchase ? 'bg-emerald-50/60 border-emerald-200 text-emerald-800' : 'bg-amber-50/60 border-amber-200 text-amber-800'">
+            <div class="flex items-center gap-1.5 font-bold">
+              <span>{{ cartService.cartTotalPrice() >= selectedVoucherForDetail.minPurchase ? '✅' : 'ℹ️' }}</span>
+              <span>
+                {{ cartService.cartTotalPrice() >= selectedVoucherForDetail.minPurchase ? 'Keranjang Anda memenuhi syarat promo ini!' : 'Belum memenuhi syarat minimal belanja (Subtotal saat ini: Rp ' + (cartService.cartTotalPrice() | number:'1.0-0') + ')' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-3 pt-2">
+            <button type="button" (click)="closeVoucherDetailModal()" 
+              class="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors">
+              Tutup
+            </button>
+            <button type="button" (click)="applyVoucherFromModal()" 
+              class="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm btn-press flex items-center justify-center gap-1.5">
+              <span>Gunakan Kupon Ini</span>
+              <span>&rarr;</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   `
 })
@@ -305,6 +420,10 @@ export class CheckoutComponent implements OnInit {
   appliedVoucher: VoucherCalculationResponse | null = null;
   isValidatingVoucher = false;
 
+  // Voucher Detail Modal state (FIX-006: View Promo Detail vs Apply Promo)
+  selectedVoucherForDetail: Voucher | null = null;
+  showVoucherDetailModal = false;
+
   ngOnInit() {
     if (this.cartService.cartItems().length === 0) {
       this.toastService.warning('Keranjang Kosong', 'Silakan pilih produk terlebih dahulu sebelum checkout.');
@@ -326,6 +445,27 @@ export class CheckoutComponent implements OnInit {
   }
 
   selectVoucherPill(code: string) {
+    this.voucherInputCode = code;
+    this.applyVoucher();
+  }
+
+  openVoucherDetail(voucher: Voucher, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.selectedVoucherForDetail = voucher;
+    this.showVoucherDetailModal = true;
+  }
+
+  closeVoucherDetailModal() {
+    this.showVoucherDetailModal = false;
+    this.selectedVoucherForDetail = null;
+  }
+
+  applyVoucherFromModal() {
+    if (!this.selectedVoucherForDetail) return;
+    const code = this.selectedVoucherForDetail.code;
+    this.closeVoucherDetailModal();
     this.voucherInputCode = code;
     this.applyVoucher();
   }

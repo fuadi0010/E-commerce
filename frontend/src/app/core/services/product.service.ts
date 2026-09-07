@@ -74,4 +74,8 @@ export class ProductService {
   deleteProduct(id: string): Observable<ApiResponse<void>> {
     return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`);
   }
+
+  hideProduct(id: string): Observable<ApiResponse<void>> {
+    return this.deleteProduct(id);
+  }
 }

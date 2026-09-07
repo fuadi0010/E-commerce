@@ -141,8 +141,8 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
                 <a [routerLink]="['/admin/products/edit', product.id]" class="text-indigo-600 hover:text-indigo-900 px-2.5 py-1 rounded-lg hover:bg-indigo-50 transition-colors">
                   Edit
                 </a>
-                <button (click)="deleteProduct(product)" class="text-rose-600 hover:text-rose-900 px-2.5 py-1 rounded-lg hover:bg-rose-50 transition-colors">
-                  Hapus
+                <button (click)="hideProduct(product)" class="text-amber-600 hover:text-amber-800 px-2.5 py-1 rounded-lg hover:bg-amber-50 transition-colors font-semibold" title="Sembunyikan dari etalase pelanggan">
+                  Sembunyikan
                 </button>
               </td>
             </tr>
@@ -265,17 +265,22 @@ export class ProductListComponent implements OnInit {
     return Array.from({ length: total }, (_, i) => i);
   }
 
-  deleteProduct(product: Product) {
-    if (confirm(`Apakah Anda yakin ingin menghapus produk "${product.name}"?`)) {
-      this.productService.deleteProduct(product.id).subscribe({
+  hideProduct(product: Product) {
+    if (confirm(`Apakah Anda yakin ingin menyembunyikan produk "${product.name}" dari katalog etalase? Produk tidak akan dihapus permanen dari database.`)) {
+      this.productService.hideProduct(product.id).subscribe({
         next: () => {
-          this.toastService.success('Sukses', `Produk "${product.name}" berhasil dihapus.`);
+          this.toastService.success('Sukses', `Produk "${product.name}" berhasil disembunyikan dari katalog aktif.`);
           this.loadProducts();
         },
         error: () => {
-          this.toastService.error('Error', 'Gagal menghapus produk');
+          this.toastService.error('Error', 'Gagal menyembunyikan produk');
         }
       });
     }
+  }
+
+  // Alias deleteProduct tetap dipertahankan untuk backward compatibility
+  deleteProduct(product: Product) {
+    this.hideProduct(product);
   }
 }

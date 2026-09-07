@@ -36,13 +36,21 @@ public class OrderMapper {
 
     public OrderItemResponse toItemResponse(OrderItemEntity item) {
         if (item == null) return null;
+        ProductResponse productResponse = null;
+        if (item.getProduct() != null) {
+            productResponse = ProductResponse.builder()
+                    .id(item.getProduct().getId())
+                    .name(item.getProduct().getName())
+                    .imageUrl(item.getProduct().getImageUrl())
+                    .build();
+        } else {
+            productResponse = ProductResponse.builder()
+                    .name("[Produk Tidak Aktif / Diarsipkan]")
+                    .build();
+        }
         return OrderItemResponse.builder()
                 .id(item.getId())
-                .product(ProductResponse.builder()
-                        .id(item.getProduct().getId())
-                        .name(item.getProduct().getName())
-                        .imageUrl(item.getProduct().getImageUrl())
-                        .build())
+                .product(productResponse)
                 .quantity(item.getQuantity())
                 .priceAtTime(item.getPriceAtTime())
                 .subTotal(item.getPriceAtTime().multiply(BigDecimal.valueOf(item.getQuantity())))

@@ -23,8 +23,13 @@ import { AuthService } from '../../../../core/services/auth.service';
         <!-- Sidebar Brand -->
         <div class="p-6 border-b border-slate-800 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm">
-              A
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white flex items-center justify-center p-1.5 shadow-sm">
+              <svg viewBox="0 0 36 36" fill="none" class="w-full h-full">
+                <path d="M12 11V8C12 4.686 14.686 2 18 2C21.314 2 24 4.686 24 8V11" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+                <rect x="5" y="10" width="26" height="22" rx="5" fill="white" fill-opacity="0.2" />
+                <path d="M12 16C12 19.314 14.686 22 18 22C21.314 22 24 19.314 24 16" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" />
+                <path d="M26 6L27.2 9.8L31 11L27.2 12.2L26 16L24.8 12.2L21 11L24.8 9.8L26 6Z" fill="#F59E0B" />
+              </svg>
             </div>
             <div>
               <h2 class="text-sm font-extrabold tracking-tight text-white leading-none">AURA</h2>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none">
+  <defs>
+    <linearGradient id="aura-bag-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+    <linearGradient id="aura-accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#EF4444" />
+    </linearGradient>
+  </defs>
+  <!-- Bag Handle -->
+  <path d="M12 11V8C12 4.686 14.686 2 18 2C21.314 2 24 4.686 24 8V11" stroke="#4F46E5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Bag Body with rounded corners -->
+  <rect x="5" y="10" width="26" height="22" rx="6" fill="url(#aura-bag-grad)" />
+  <!-- Inner Cut / Depth Detail -->
+  <path d="M12 16C12 19.314 14.686 22 18 22C21.314 22 24 19.314 24 16" stroke="white" stroke-opacity="0.4" stroke-width="2.5" stroke-linecap="round" />
+  <!-- Modern Sparkle Star (Aura signature) -->
+  <path d="M26 6L27.2 9.8L31 11L27.2 12.2L26 16L24.8 12.2L21 11L24.8 9.8L26 6Z" fill="url(#aura-accent-grad)" />
+</svg>

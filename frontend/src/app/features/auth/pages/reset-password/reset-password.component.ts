@@ -33,11 +33,19 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
         
         <!-- Brand Header -->
         <div class="text-center space-y-2">
-          <a routerLink="/catalog" class="inline-flex items-center gap-2 group">
-            <div class="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
-              A
+          <a routerLink="/catalog" class="inline-flex items-center gap-2.5 group">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white flex items-center justify-center p-2 shadow-sm group-hover:scale-105 transition-transform">
+              <svg viewBox="0 0 36 36" fill="none" class="w-full h-full">
+                <path d="M12 11V8C12 4.686 14.686 2 18 2C21.314 2 24 4.686 24 8V11" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+                <rect x="5" y="10" width="26" height="22" rx="5" fill="white" fill-opacity="0.2" />
+                <path d="M12 16C12 19.314 14.686 22 18 22C21.314 22 24 19.314 24 16" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" />
+                <path d="M26 6L27.2 9.8L31 11L27.2 12.2L26 16L24.8 12.2L21 11L24.8 9.8L26 6Z" fill="#F59E0B" />
+              </svg>
             </div>
-            <span class="font-extrabold text-xl tracking-tight text-slate-900">AURA</span>
+            <div class="flex flex-col text-left">
+              <span class="font-extrabold text-xl tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">AURA</span>
+              <span class="text-[9px] tracking-widest text-slate-500 uppercase font-bold -mt-1">Borkat Serba Ada</span>
+            </div>
           </a>
           <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Atur Ulang Kata Sandi</h1>
           <p class="text-xs sm:text-sm text-slate-500">

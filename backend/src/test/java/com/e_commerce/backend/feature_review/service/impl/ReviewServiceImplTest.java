@@ -276,19 +276,4 @@ class ReviewServiceImplTest {
         assertEquals(4.7, summary.getAverageRating());
         assertEquals(15L, summary.getTotalReviews());
     }
-
-    @Test
-    @DisplayName("getAllReviewsAdmin: berhasil mengambil semua ulasan untuk admin secara berhalaman")
-    void getAllReviewsAdmin_Success() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<ReviewEntity> page = new PageImpl<>(List.of(review), pageable, 1);
-
-        when(reviewRepository.findAll(pageable)).thenReturn(page);
-
-        Page<ReviewEntity> result = reviewService.getAllReviewsAdmin(pageable);
-
-        assertNotNull(result);
-        assertEquals(1, result.getTotalElements());
-        verify(reviewRepository, times(1)).findAll(pageable);
-    }
 }

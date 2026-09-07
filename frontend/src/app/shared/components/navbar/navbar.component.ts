@@ -17,12 +17,17 @@ import { CartService } from '../../../core/services/cart.service';
         <!-- Brand / Logo -->
         <div class="flex items-center gap-6">
           <a routerLink="/catalog" (click)="closeMobileMenu()" class="flex items-center gap-2.5 group">
-            <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
-              <span>B</span>
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white flex items-center justify-center p-1.5 shadow-sm group-hover:scale-105 transition-transform">
+              <svg viewBox="0 0 36 36" fill="none" class="w-full h-full">
+                <path d="M12 11V8C12 4.686 14.686 2 18 2C21.314 2 24 4.686 24 8V11" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+                <rect x="5" y="10" width="26" height="22" rx="5" fill="white" fill-opacity="0.2" />
+                <path d="M12 16C12 19.314 14.686 22 18 22C21.314 22 24 19.314 24 16" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" />
+                <path d="M26 6L27.2 9.8L31 11L27.2 12.2L26 16L24.8 12.2L21 11L24.8 9.8L26 6Z" fill="#F59E0B" />
+              </svg>
             </div>
             <div class="flex flex-col">
-              <span class="font-extrabold text-base tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">Borkat</span>
-              <span class="text-[10px] tracking-widest text-slate-600 uppercase font-semibold -mt-1">Serba Ada</span>
+              <span class="font-extrabold text-base tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">AURA</span>
+              <span class="text-[10px] tracking-widest text-slate-500 uppercase font-semibold -mt-1">Borkat Serba Ada</span>
             </div>
           </a>
 
