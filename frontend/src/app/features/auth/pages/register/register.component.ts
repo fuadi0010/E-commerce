@@ -202,9 +202,9 @@ export class RegisterComponent {
 
     this.isLoading = true;
     this.authService.register(payload).subscribe({
-      next: () => {
-        this.toastService.success('Registrasi Berhasil', 'Akun Anda berhasil dibuat. Silakan login.');
-        this.router.navigate(['/login']); 
+      next: (res) => {
+        this.toastService.info('Registrasi Berhasil', res?.message || 'Kode OTP verifikasi telah dikirimkan ke email Anda.');
+        this.router.navigate(['/verify-otp'], { queryParams: { email: payload.email } }); 
       },
       error: (err) => {
         this.isLoading = false;

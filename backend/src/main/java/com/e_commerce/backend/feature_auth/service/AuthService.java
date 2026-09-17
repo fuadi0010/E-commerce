@@ -13,4 +13,6 @@ public interface AuthService {
     TokenRefreshResponse refreshToken(String requestRefreshToken);
     void forgotPassword(String email);
     void resetPassword(ResetPasswordRequest request);
+    void verifyOtp(com.e_commerce.backend.feature_auth.dto.request.VerifyOtpRequest request);
+    void resendOtp(com.e_commerce.backend.feature_auth.dto.request.ResendOtpRequest request);
 }

@@ -3,7 +3,6 @@ package com.e_commerce.backend.feature_voucher.service.impl;
 import com.e_commerce.backend.exception.custom.DuplicateResourceException;
 import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
 import com.e_commerce.backend.feature_voucher.dto.request.CreateVoucherRequest;
-import com.e_commerce.backend.feature_voucher.dto.request.UpdateVoucherRequest;
 import com.e_commerce.backend.feature_voucher.dto.request.ValidateVoucherRequest;
 import com.e_commerce.backend.feature_voucher.dto.response.VoucherCalculationResponse;
 import com.e_commerce.backend.feature_voucher.model.DiscountType;

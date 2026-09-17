@@ -1,7 +1,5 @@
 package com.e_commerce.backend.feature_user.model;
 
-import java.time.ZonedDateTime;
-
 import java.util.UUID;
 import com.e_commerce.backend.common.entity.BaseEntity;
 

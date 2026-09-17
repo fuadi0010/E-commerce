@@ -11,6 +11,5 @@ import java.util.UUID;
 @Repository
 public interface CategoryRepository extends JpaRepository<CategoryEntity, UUID> {
     Optional<CategoryEntity> findByName(String name);
-    List<CategoryEntity> findByIsActiveTrue();
     List<CategoryEntity> findByIsActiveTrueOrderByNameAsc();
 }

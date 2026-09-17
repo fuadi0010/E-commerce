@@ -17,12 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 import com.e_commerce.backend.feature_auth.dto.request.LoginRequest;
 import com.e_commerce.backend.feature_auth.dto.request.RegisterRequest;
 import com.e_commerce.backend.feature_auth.dto.request.ResetPasswordRequest;
+import com.e_commerce.backend.feature_auth.dto.request.VerifyOtpRequest;
+import com.e_commerce.backend.feature_auth.dto.request.ResendOtpRequest;
 import com.e_commerce.backend.feature_auth.dto.response.AuthResponse;
 import com.e_commerce.backend.feature_auth.dto.response.TokenRefreshResponse;
 import com.e_commerce.backend.feature_auth.model.PasswordResetTokenEntity;
 import com.e_commerce.backend.feature_auth.model.RefreshTokenEntity;
+import com.e_commerce.backend.feature_auth.model.RegistrationOtpEntity;
 import com.e_commerce.backend.feature_auth.repository.PasswordResetTokenRepository;
 import com.e_commerce.backend.feature_auth.repository.RefreshTokenRepository;
+import com.e_commerce.backend.feature_auth.repository.RegistrationOtpRepository;
 import com.e_commerce.backend.feature_auth.service.AuthService;
 import com.e_commerce.backend.feature_user.model.Role;
 import com.e_commerce.backend.feature_user.model.UserEntity;
@@ -34,8 +38,12 @@ import com.e_commerce.backend.security.JwtUtils;
 import com.e_commerce.backend.security.UserDetailsImpl;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.e_commerce.backend.common.service.EmailService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -50,10 +58,25 @@ public class AuthServiceImpl implements AuthService {
     private final UserProfileRepository userProfileRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final RegistrationOtpRepository registrationOtpRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
     private final EmailService emailService;
+
+    @Value("${app.otp.expiration-minutes:5}")
+    private int otpExpirationMinutes = 5;
+
+    @Value("${app.otp.max-attempts:5}")
+    private int otpMaxAttempts = 5;
+
+    @Value("${app.otp.resend-cooldown-seconds:60}")
+    private int otpResendCooldownSeconds = 60;
+
+    @Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendBaseUrl;
+
+    private final SecureRandom secureRandom = new SecureRandom();
 
     private static final long REFRESH_TOKEN_DURATION_MS = 86400000L; // 24 hours
     private static final long RESET_TOKEN_DURATION_MS = 1800000L; // 30 minutes
@@ -67,30 +90,78 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 2. Validasi Duplikasi
-        if (userRepository.findByEmailAndDeletedAtIsNull(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email sudah terdaftar!"); // Akan ditangkap GlobalExceptionHandler
+        Optional<UserEntity> existingUserOpt = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail());
+        UserEntity user;
+        if (existingUserOpt.isPresent()) {
+            UserEntity existingUser = existingUserOpt.get();
+            if (Boolean.TRUE.equals(existingUser.getEmailVerified())) {
+                throw new IllegalArgumentException("Email sudah terdaftar!"); // Akan ditangkap GlobalExceptionHandler
+            }
+            // User sudah registrasi tapi belum verifikasi -> perbarui kata sandi dan profil
+            user = existingUser;
+            user.setPassword_hash(passwordEncoder.encode(request.getPassword()));
+            user = userRepository.save(user);
+
+            UserProfileEntity profile = userProfileRepository.findByUser(user)
+                    .orElseGet(() -> {
+                        UserProfileEntity newProf = new UserProfileEntity();
+                        newProf.setUser(existingUser);
+                        return newProf;
+                    });
+            profile.setFullName(request.getFullName());
+            if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
+                profile.setPhone(request.getPhoneNumber());
+            }
+            userProfileRepository.save(profile);
+        } else {
+            // 3. Ambil Role Default
+            Role customerRole = roleRepository.findByName("ROLE_CUSTOMER")
+                    .orElseThrow(() -> new RuntimeException("Error: Role tidak ditemukan di database."));
+
+            // 4. Buat dan Simpan User baru dengan email_verified = false
+            user = new UserEntity();
+            user.setEmail(request.getEmail());
+            user.setPassword_hash(passwordEncoder.encode(request.getPassword()));
+            user.setEmailVerified(false);
+            user.getRoles().add(customerRole);
+            
+            user = userRepository.save(user);
+
+            // 5. Buat dan Simpan Profil User
+            UserProfileEntity profile = new UserProfileEntity();
+            profile.setUser(user);
+            profile.setFullName(request.getFullName());
+            if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
+                profile.setPhone(request.getPhoneNumber());
+            }
+            userProfileRepository.save(profile);
         }
 
-        // 3. Ambil Role Default
-        Role customerRole = roleRepository.findByName("ROLE_CUSTOMER")
-                .orElseThrow(() -> new RuntimeException("Error: Role tidak ditemukan di database."));
+        // 6. Invalidate OTP sebelumnya yang masih aktif jika ada
+        invalidatePreviousOtps(user);
 
-        // 4. Buat dan Simpan User (BCrypt bekerja di sini)
-        UserEntity user = new UserEntity();
-        user.setEmail(request.getEmail());
-        user.setPassword_hash(passwordEncoder.encode(request.getPassword()));
-        user.getRoles().add(customerRole);
-        
-        UserEntity savedUser = userRepository.save(user);
+        // 7. Generate dan simpan OTP baru
+        String rawOtp = generateOtp();
+        String otpHash = hashToken(rawOtp);
 
-        // 5. Buat dan Simpan Profil User
-        UserProfileEntity profile = new UserProfileEntity();
-        profile.setUser(savedUser);
-        profile.setFullName(request.getFullName());
-        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
-            profile.setPhone(request.getPhoneNumber());
+        RegistrationOtpEntity otpEntity = RegistrationOtpEntity.builder()
+                .user(user)
+                .otpHash(otpHash)
+                .expiryDate(ZonedDateTime.now().plusMinutes(otpExpirationMinutes))
+                .attempts(0)
+                .maxAttempts(otpMaxAttempts)
+                .isUsed(false)
+                .lastResendAt(ZonedDateTime.now())
+                .build();
+        registrationOtpRepository.save(otpEntity);
+
+        // 8. Kirim OTP via Email
+        boolean sent = emailService.sendRegistrationOtpEmail(user.getEmail(), request.getFullName(), rawOtp, otpExpirationMinutes);
+        if (!sent) {
+            log.error("Failed to deliver registration OTP email to {}", user.getEmail());
+            throw new IllegalStateException("Gagal mengirimkan kode verifikasi OTP ke email Anda. Silakan periksa konfigurasi email atau coba beberapa saat lagi.");
         }
-        userProfileRepository.save(profile);
+        log.info("Registration OTP email successfully sent to {}", user.getEmail());
     }
 
     @Override
@@ -184,12 +255,14 @@ public class AuthServiceImpl implements AuthService {
                     .build();
             passwordResetTokenRepository.save(resetTokenEntity);
 
-            String resetLink = "http://localhost:4200/reset-password?token=" + token;
+            String resetLink = frontendBaseUrl + "/reset-password?token=" + token;
             
             boolean sent = emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
             if (!sent) {
-                log.warn("Password reset token generated for user {}, but email delivery was not successful.", user.getEmail());
+                log.error("Failed to deliver password reset email to {}", user.getEmail());
+                throw new IllegalStateException("Gagal mengirimkan email reset password. Silakan periksa konfigurasi email atau coba beberapa saat lagi.");
             }
+            log.info("Password reset email successfully sent to {}", user.getEmail());
         });
         // Kita tidak throw exception bila user tidak ditemukan, demi mencegah enumeration.
     }
@@ -219,6 +292,118 @@ public class AuthServiceImpl implements AuthService {
 
         resetTokenEntity.setIsUsed(true);
         passwordResetTokenRepository.save(resetTokenEntity);
+    }
+
+    @Override
+    @Transactional
+    public void verifyOtp(VerifyOtpRequest request) {
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Akun tidak ditemukan atau email salah."));
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new IllegalArgumentException("Akun sudah terverifikasi. Silakan login.");
+        }
+
+        RegistrationOtpEntity otpEntity = registrationOtpRepository
+                .findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(user)
+                .orElseThrow(() -> new IllegalArgumentException("Kode OTP tidak ditemukan atau sudah digunakan. Silakan minta kode baru."));
+
+        if (otpEntity.getExpiryDate().isBefore(ZonedDateTime.now())) {
+            otpEntity.setIsUsed(true);
+            registrationOtpRepository.save(otpEntity);
+            throw new IllegalArgumentException("Kode OTP sudah kedaluwarsa. Silakan minta kode baru.");
+        }
+
+        if (otpEntity.getAttempts() >= otpEntity.getMaxAttempts()) {
+            otpEntity.setIsUsed(true);
+            registrationOtpRepository.save(otpEntity);
+            throw new IllegalArgumentException("Batas percobaan OTP telah terlampaui. Silakan minta kode baru.");
+        }
+
+        String inputOtpHash = hashToken(request.getOtp());
+        if (!inputOtpHash.equals(otpEntity.getOtpHash())) {
+            int newAttempts = otpEntity.getAttempts() + 1;
+            otpEntity.setAttempts(newAttempts);
+            if (newAttempts >= otpEntity.getMaxAttempts()) {
+                otpEntity.setIsUsed(true);
+                registrationOtpRepository.save(otpEntity);
+                throw new IllegalArgumentException("Kode OTP salah. Batas percobaan telah habis. Silakan minta kode baru.");
+            }
+            registrationOtpRepository.save(otpEntity);
+            int remainingAttempts = otpEntity.getMaxAttempts() - newAttempts;
+            throw new IllegalArgumentException("Kode OTP salah. Sisa percobaan: " + remainingAttempts);
+        }
+
+        // OTP Cocok
+        otpEntity.setIsUsed(true);
+        registrationOtpRepository.save(otpEntity);
+
+        user.setEmailVerified(true);
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void resendOtp(ResendOtpRequest request) {
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Akun tidak ditemukan atau email salah."));
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new IllegalArgumentException("Akun sudah aktif dan terverifikasi. Silakan login.");
+        }
+
+        Optional<RegistrationOtpEntity> latestOtpOpt = registrationOtpRepository
+                .findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(user);
+
+        if (latestOtpOpt.isPresent()) {
+            RegistrationOtpEntity latestOtp = latestOtpOpt.get();
+            ZonedDateTime cooldownEnd = latestOtp.getLastResendAt().plusSeconds(otpResendCooldownSeconds);
+            if (ZonedDateTime.now().isBefore(cooldownEnd)) {
+                long remainingSeconds = Duration.between(ZonedDateTime.now(), cooldownEnd).getSeconds() + 1;
+                throw new IllegalArgumentException("Harap tunggu " + remainingSeconds + " detik sebelum meminta kode OTP baru.");
+            }
+        }
+
+        invalidatePreviousOtps(user);
+
+        String fullName = userProfileRepository.findByUser(user)
+                .map(UserProfileEntity::getFullName)
+                .orElse(user.getEmail());
+
+        String rawOtp = generateOtp();
+        String otpHash = hashToken(rawOtp);
+
+        RegistrationOtpEntity newOtp = RegistrationOtpEntity.builder()
+                .user(user)
+                .otpHash(otpHash)
+                .expiryDate(ZonedDateTime.now().plusMinutes(otpExpirationMinutes))
+                .attempts(0)
+                .maxAttempts(otpMaxAttempts)
+                .isUsed(false)
+                .lastResendAt(ZonedDateTime.now())
+                .build();
+        registrationOtpRepository.save(newOtp);
+
+        boolean sent = emailService.sendRegistrationOtpEmail(user.getEmail(), fullName, rawOtp, otpExpirationMinutes);
+        if (!sent) {
+            log.error("Failed to deliver resent registration OTP email to {}", user.getEmail());
+            throw new IllegalStateException("Gagal mengirimkan kode OTP baru ke email Anda. Silakan periksa konfigurasi email atau coba beberapa saat lagi.");
+        }
+        log.info("Resent registration OTP email successfully sent to {}", user.getEmail());
+    }
+
+    private void invalidatePreviousOtps(UserEntity user) {
+        List<RegistrationOtpEntity> activeOtps = registrationOtpRepository.findAllByUserAndIsUsedFalse(user);
+        for (RegistrationOtpEntity otp : activeOtps) {
+            otp.setIsUsed(true);
+        }
+        if (!activeOtps.isEmpty()) {
+            registrationOtpRepository.saveAll(activeOtps);
+        }
+    }
+
+    private String generateOtp() {
+        return String.format("%06d", secureRandom.nextInt(1000000));
     }
 
     private String hashToken(String token) {

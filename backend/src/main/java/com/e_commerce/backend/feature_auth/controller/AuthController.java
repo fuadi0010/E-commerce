@@ -26,7 +26,19 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> registerUser(@Valid @RequestBody RegisterRequest request) {
         authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(null, "Registrasi berhasil"));
+                .body(ApiResponse.success(null, "Registrasi berhasil. Silakan periksa email Anda untuk kode OTP verifikasi."));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<ApiResponse<Void>> verifyOtp(@Valid @RequestBody com.e_commerce.backend.feature_auth.dto.request.VerifyOtpRequest request) {
+        authService.verifyOtp(request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Verifikasi akun berhasil. Silakan login."));
+    }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<Void>> resendOtp(@Valid @RequestBody com.e_commerce.backend.feature_auth.dto.request.ResendOtpRequest request) {
+        authService.resendOtp(request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Kode OTP baru berhasil dikirimkan ke email Anda."));
     }
 
     @PostMapping("/login")

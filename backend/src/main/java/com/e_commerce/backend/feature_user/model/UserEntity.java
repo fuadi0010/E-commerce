@@ -46,6 +46,9 @@ public class UserEntity extends BaseEntity {
     @Column(name = "deleted_at")
     private ZonedDateTime deletedAt;
 
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = true;
+
     // PR REVIEW: Menggunakan FetchType.EAGER karena role selalu dibutuhkan 
     // oleh Spring Security saat load UserDetails, untuk mencegah N+1 / LazyInitializationException di luar transaksi.
 

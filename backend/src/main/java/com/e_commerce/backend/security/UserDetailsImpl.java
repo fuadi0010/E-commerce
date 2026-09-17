@@ -54,9 +54,8 @@ public class UserDetailsImpl implements UserDetails{
 
     @Override
     public boolean isEnabled() {
-        // Karena kita menggunakan Soft Delete (deleted_at IS NULL di repository), 
-        // semua data yang sampai ke kelas ini diasumsikan aktif (true).
-        return true; 
+        // Akun aktif jika email_verified bernilai true (atau default true untuk akun seed eksisting)
+        return user.getEmailVerified() == null || Boolean.TRUE.equals(user.getEmailVerified()); 
     }
 
     // Getter tambahan agar kita bisa mengekstrak ID User kapan saja dari sesi Security

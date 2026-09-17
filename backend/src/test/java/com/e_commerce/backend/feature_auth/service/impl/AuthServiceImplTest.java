@@ -3,11 +3,15 @@ package com.e_commerce.backend.feature_auth.service.impl;
 import com.e_commerce.backend.feature_auth.dto.request.LoginRequest;
 import com.e_commerce.backend.feature_auth.dto.request.RegisterRequest;
 import com.e_commerce.backend.feature_auth.dto.request.ResetPasswordRequest;
+import com.e_commerce.backend.feature_auth.dto.request.VerifyOtpRequest;
+import com.e_commerce.backend.feature_auth.dto.request.ResendOtpRequest;
 import com.e_commerce.backend.feature_auth.dto.response.AuthResponse;
 import com.e_commerce.backend.feature_auth.model.PasswordResetTokenEntity;
 import com.e_commerce.backend.feature_auth.model.RefreshTokenEntity;
+import com.e_commerce.backend.feature_auth.model.RegistrationOtpEntity;
 import com.e_commerce.backend.feature_auth.repository.PasswordResetTokenRepository;
 import com.e_commerce.backend.feature_auth.repository.RefreshTokenRepository;
+import com.e_commerce.backend.feature_auth.repository.RegistrationOtpRepository;
 import com.e_commerce.backend.feature_user.model.Role;
 import com.e_commerce.backend.feature_user.model.UserEntity;
 import com.e_commerce.backend.feature_user.repository.RoleRepository;
@@ -27,9 +31,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.ZonedDateTime;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,6 +52,7 @@ class AuthServiceImplTest {
     @Mock private UserProfileRepository userProfileRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock private RegistrationOtpRepository registrationOtpRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private JwtUtils jwtUtils;
@@ -59,6 +66,8 @@ class AuthServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        ReflectionTestUtils.setField(authService, "frontendBaseUrl", "http://localhost:4200");
+
         customerRole = new Role();
         customerRole.setId(UUID.randomUUID());
         customerRole.setName("ROLE_CUSTOMER");
@@ -67,6 +76,7 @@ class AuthServiceImplTest {
         mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("user@example.com");
         mockUser.setPassword_hash("encodedPassword");
+        mockUser.setEmailVerified(true);
         mockUser.setRoles(new HashSet<>());
         mockUser.getRoles().add(customerRole);
     }
@@ -88,11 +98,14 @@ class AuthServiceImplTest {
             u.setId(UUID.randomUUID());
             return u;
         });
+        when(emailService.sendRegistrationOtpEmail(anyString(), any(), anyString(), anyInt())).thenReturn(true);
 
         assertDoesNotThrow(() -> authService.register(request));
 
         verify(userRepository, times(1)).save(any(UserEntity.class));
         verify(userProfileRepository, times(1)).save(any());
+        verify(registrationOtpRepository, times(1)).save(any(RegistrationOtpEntity.class));
+        verify(emailService, times(1)).sendRegistrationOtpEmail(eq(request.getEmail()), eq(request.getFullName()), anyString(), anyInt());
     }
 
     @Test
@@ -113,12 +126,15 @@ class AuthServiceImplTest {
             u.setId(UUID.randomUUID());
             return u;
         });
+        when(emailService.sendRegistrationOtpEmail(anyString(), any(), anyString(), anyInt())).thenReturn(true);
 
         assertDoesNotThrow(() -> authService.register(request));
 
         verify(userProfileRepository, times(1)).save(argThat(p -> 
             p != null && "+628123456789".equals(p.getPhone()) && "Phone User".equals(p.getFullName())
         ));
+        verify(registrationOtpRepository, times(1)).save(any(RegistrationOtpEntity.class));
+        verify(emailService, times(1)).sendRegistrationOtpEmail(eq(request.getEmail()), eq(request.getFullName()), anyString(), anyInt());
     }
 
     @Test
@@ -186,11 +202,12 @@ class AuthServiceImplTest {
     @DisplayName("forgotPassword: User ditemukan -> Menyimpan token dan memanggil emailService")
     void forgotPassword_UserFound_SendsEmail() {
         when(userRepository.findByEmailAndDeletedAtIsNull("user@example.com")).thenReturn(Optional.of(mockUser));
+        when(emailService.sendPasswordResetEmail(eq("user@example.com"), anyString())).thenReturn(true);
 
         assertDoesNotThrow(() -> authService.forgotPassword("user@example.com"));
 
         verify(passwordResetTokenRepository, times(1)).save(any());
-        verify(emailService, times(1)).sendPasswordResetEmail(eq("user@example.com"), anyString());
+        verify(emailService, times(1)).sendPasswordResetEmail(eq("user@example.com"), contains("http://localhost:4200/reset-password?token="));
     }
 
     @Test
@@ -318,5 +335,334 @@ class AuthServiceImplTest {
 
         assertEquals("Token reset password sudah kedaluwarsa.", ex.getMessage());
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("register: Email terdaftar tapi belum verifikasi OTP -> Update data dan kirim OTP baru")
+    void register_ExistingUnverifiedUser_UpdatesAndSendsNewOtp() {
+        UserEntity unverifiedUser = new UserEntity();
+        unverifiedUser.setId(UUID.randomUUID());
+        unverifiedUser.setEmail("pending@example.com");
+        unverifiedUser.setPassword_hash("oldHash");
+        unverifiedUser.setEmailVerified(false);
+
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("pending@example.com");
+        request.setPassword("NewPassword123!");
+        request.setPasswordConfirmation("NewPassword123!");
+        request.setFullName("Updated Name");
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(unverifiedUser));
+        when(passwordEncoder.encode(request.getPassword())).thenReturn("newEncodedPassword");
+        when(userRepository.save(any(UserEntity.class))).thenReturn(unverifiedUser);
+        when(userProfileRepository.findByUser(unverifiedUser)).thenReturn(Optional.empty());
+        when(emailService.sendRegistrationOtpEmail(anyString(), any(), anyString(), anyInt())).thenReturn(true);
+
+        assertDoesNotThrow(() -> authService.register(request));
+
+        verify(registrationOtpRepository, times(1)).save(any(RegistrationOtpEntity.class));
+        verify(emailService, times(1)).sendRegistrationOtpEmail(eq(request.getEmail()), eq(request.getFullName()), anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("verifyOtp: OTP valid -> Berhasil verifikasi akun dan tandai OTP digunakan")
+    void verifyOtp_Success() {
+        VerifyOtpRequest request = new VerifyOtpRequest();
+        request.setEmail("user@example.com");
+        request.setOtp("123456");
+
+        UserEntity unverifiedUser = new UserEntity();
+        unverifiedUser.setId(UUID.randomUUID());
+        unverifiedUser.setEmail("user@example.com");
+        unverifiedUser.setEmailVerified(false);
+
+        // SHA-256 hash of "123456"
+        String otpHash = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+
+        RegistrationOtpEntity otpEntity = RegistrationOtpEntity.builder()
+                .user(unverifiedUser)
+                .otpHash(otpHash)
+                .expiryDate(ZonedDateTime.now().plusMinutes(5))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(unverifiedUser));
+        when(registrationOtpRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(unverifiedUser))
+                .thenReturn(Optional.of(otpEntity));
+
+        assertDoesNotThrow(() -> authService.verifyOtp(request));
+
+        assertTrue(otpEntity.getIsUsed());
+        assertTrue(unverifiedUser.getEmailVerified());
+        verify(userRepository, times(1)).save(unverifiedUser);
+        verify(registrationOtpRepository, times(1)).save(otpEntity);
+    }
+
+    @Test
+    @DisplayName("verifyOtp: User tidak ditemukan -> Throws IllegalArgumentException")
+    void verifyOtp_UserNotFound_ThrowsIllegalArgumentException() {
+        VerifyOtpRequest request = new VerifyOtpRequest();
+        request.setEmail("notfound@example.com");
+        request.setOtp("123456");
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyOtp(request));
+        assertEquals("Akun tidak ditemukan atau email salah.", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("verifyOtp: Akun sudah terverifikasi -> Throws IllegalArgumentException")
+    void verifyOtp_AlreadyVerified_ThrowsIllegalArgumentException() {
+        VerifyOtpRequest request = new VerifyOtpRequest();
+        request.setEmail("user@example.com");
+        request.setOtp("123456");
+
+        mockUser.setEmailVerified(true);
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(mockUser));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyOtp(request));
+        assertEquals("Akun sudah terverifikasi. Silakan login.", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("verifyOtp: OTP kedaluwarsa -> Throws IllegalArgumentException")
+    void verifyOtp_ExpiredOtp_ThrowsIllegalArgumentException() {
+        VerifyOtpRequest request = new VerifyOtpRequest();
+        request.setEmail("user@example.com");
+        request.setOtp("123456");
+
+        UserEntity unverifiedUser = new UserEntity();
+        unverifiedUser.setId(UUID.randomUUID());
+        unverifiedUser.setEmail("user@example.com");
+        unverifiedUser.setEmailVerified(false);
+
+        RegistrationOtpEntity expiredOtp = RegistrationOtpEntity.builder()
+                .user(unverifiedUser)
+                .otpHash("hash")
+                .expiryDate(ZonedDateTime.now().minusMinutes(1))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(unverifiedUser));
+        when(registrationOtpRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(unverifiedUser))
+                .thenReturn(Optional.of(expiredOtp));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyOtp(request));
+        assertEquals("Kode OTP sudah kedaluwarsa. Silakan minta kode baru.", ex.getMessage());
+        assertTrue(expiredOtp.getIsUsed());
+        verify(registrationOtpRepository, times(1)).save(expiredOtp);
+    }
+
+    @Test
+    @DisplayName("verifyOtp: OTP salah -> Increment attempts & Throws IllegalArgumentException")
+    void verifyOtp_WrongOtp_IncrementsAttempts() {
+        VerifyOtpRequest request = new VerifyOtpRequest();
+        request.setEmail("user@example.com");
+        request.setOtp("000000"); // wrong otp
+
+        UserEntity unverifiedUser = new UserEntity();
+        unverifiedUser.setId(UUID.randomUUID());
+        unverifiedUser.setEmail("user@example.com");
+        unverifiedUser.setEmailVerified(false);
+
+        // SHA-256 hash of "123456"
+        String otpHash = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+
+        RegistrationOtpEntity otpEntity = RegistrationOtpEntity.builder()
+                .user(unverifiedUser)
+                .otpHash(otpHash)
+                .expiryDate(ZonedDateTime.now().plusMinutes(5))
+                .attempts(2)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(unverifiedUser));
+        when(registrationOtpRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(unverifiedUser))
+                .thenReturn(Optional.of(otpEntity));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyOtp(request));
+        assertTrue(ex.getMessage().contains("Kode OTP salah. Sisa percobaan: 2"));
+        assertEquals(3, otpEntity.getAttempts());
+        assertFalse(otpEntity.getIsUsed());
+        verify(registrationOtpRepository, times(1)).save(otpEntity);
+    }
+
+    @Test
+    @DisplayName("verifyOtp: Melebihi batas percobaan -> OTP di-invalidate & Throws IllegalArgumentException")
+    void verifyOtp_MaxAttemptsReached_InvalidatesOtp() {
+        VerifyOtpRequest request = new VerifyOtpRequest();
+        request.setEmail("user@example.com");
+        request.setOtp("000000");
+
+        UserEntity unverifiedUser = new UserEntity();
+        unverifiedUser.setId(UUID.randomUUID());
+        unverifiedUser.setEmail("user@example.com");
+        unverifiedUser.setEmailVerified(false);
+
+        RegistrationOtpEntity otpEntity = RegistrationOtpEntity.builder()
+                .user(unverifiedUser)
+                .otpHash("differentHash")
+                .expiryDate(ZonedDateTime.now().plusMinutes(5))
+                .attempts(4)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(unverifiedUser));
+        when(registrationOtpRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(unverifiedUser))
+                .thenReturn(Optional.of(otpEntity));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyOtp(request));
+        assertTrue(ex.getMessage().contains("Batas percobaan telah habis"));
+        assertTrue(otpEntity.getIsUsed());
+        verify(registrationOtpRepository, times(1)).save(otpEntity);
+    }
+
+    @Test
+    @DisplayName("resendOtp: Berhasil mengirim ulang OTP baru dan membatalkan OTP lama")
+    void resendOtp_Success() {
+        ResendOtpRequest request = new ResendOtpRequest("user@example.com");
+
+        UserEntity unverifiedUser = new UserEntity();
+        unverifiedUser.setId(UUID.randomUUID());
+        unverifiedUser.setEmail("user@example.com");
+        unverifiedUser.setEmailVerified(false);
+
+        RegistrationOtpEntity oldOtp = RegistrationOtpEntity.builder()
+                .user(unverifiedUser)
+                .otpHash("oldHash")
+                .expiryDate(ZonedDateTime.now().plusMinutes(3))
+                .attempts(1)
+                .maxAttempts(5)
+                .isUsed(false)
+                .lastResendAt(ZonedDateTime.now().minusSeconds(70)) // cooldown passed (>60s)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(unverifiedUser));
+        when(registrationOtpRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(unverifiedUser))
+                .thenReturn(Optional.of(oldOtp));
+        when(registrationOtpRepository.findAllByUserAndIsUsedFalse(unverifiedUser))
+                .thenReturn(List.of(oldOtp));
+        when(userProfileRepository.findByUser(unverifiedUser)).thenReturn(Optional.empty());
+        when(emailService.sendRegistrationOtpEmail(anyString(), any(), anyString(), anyInt())).thenReturn(true);
+
+        assertDoesNotThrow(() -> authService.resendOtp(request));
+
+        assertTrue(oldOtp.getIsUsed());
+        verify(registrationOtpRepository, times(1)).save(any(RegistrationOtpEntity.class));
+        verify(emailService, times(1)).sendRegistrationOtpEmail(eq(unverifiedUser.getEmail()), anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("resendOtp: Cooldown masih aktif -> Throws IllegalArgumentException")
+    void resendOtp_CooldownActive_ThrowsIllegalArgumentException() {
+        ResendOtpRequest request = new ResendOtpRequest("user@example.com");
+
+        UserEntity unverifiedUser = new UserEntity();
+        unverifiedUser.setId(UUID.randomUUID());
+        unverifiedUser.setEmail("user@example.com");
+        unverifiedUser.setEmailVerified(false);
+
+        RegistrationOtpEntity recentOtp = RegistrationOtpEntity.builder()
+                .user(unverifiedUser)
+                .otpHash("recentHash")
+                .expiryDate(ZonedDateTime.now().plusMinutes(5))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .lastResendAt(ZonedDateTime.now().minusSeconds(20)) // only 20 seconds ago (< 60s)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(unverifiedUser));
+        when(registrationOtpRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(unverifiedUser))
+                .thenReturn(Optional.of(recentOtp));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.resendOtp(request));
+        assertTrue(ex.getMessage().contains("Harap tunggu"));
+        verify(registrationOtpRepository, never()).save(argThat(otp -> otp != recentOtp));
+    }
+
+    @Test
+    @DisplayName("resendOtp: Akun sudah terverifikasi -> Throws IllegalArgumentException")
+    void resendOtp_AlreadyVerifiedUser_ThrowsIllegalArgumentException() {
+        ResendOtpRequest request = new ResendOtpRequest("user@example.com");
+        mockUser.setEmailVerified(true);
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(mockUser));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.resendOtp(request));
+        assertEquals("Akun sudah aktif dan terverifikasi. Silakan login.", ex.getMessage());
+        verify(registrationOtpRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("register: Pengiriman email OTP gagal -> Throws IllegalStateException")
+    void register_EmailDeliveryFailure_ThrowsIllegalStateException() {
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("newuser@example.com");
+        request.setPassword("Password123!");
+        request.setPasswordConfirmation("Password123!");
+        request.setFullName("New User");
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.empty());
+        when(roleRepository.findByName("ROLE_CUSTOMER")).thenReturn(Optional.of(customerRole));
+        when(passwordEncoder.encode(request.getPassword())).thenReturn("encodedPassword");
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(invocation -> {
+            UserEntity u = invocation.getArgument(0);
+            u.setId(UUID.randomUUID());
+            return u;
+        });
+        when(emailService.sendRegistrationOtpEmail(anyString(), any(), anyString(), anyInt())).thenReturn(false);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> authService.register(request));
+        assertTrue(ex.getMessage().contains("Gagal mengirimkan kode verifikasi OTP"));
+    }
+
+    @Test
+    @DisplayName("resendOtp: Pengiriman email OTP gagal -> Throws IllegalStateException")
+    void resendOtp_EmailDeliveryFailure_ThrowsIllegalStateException() {
+        ResendOtpRequest request = new ResendOtpRequest("user@example.com");
+
+        UserEntity unverifiedUser = new UserEntity();
+        unverifiedUser.setId(UUID.randomUUID());
+        unverifiedUser.setEmail("user@example.com");
+        unverifiedUser.setEmailVerified(false);
+
+        RegistrationOtpEntity oldOtp = RegistrationOtpEntity.builder()
+                .user(unverifiedUser)
+                .otpHash("oldHash")
+                .expiryDate(ZonedDateTime.now().plusMinutes(3))
+                .attempts(1)
+                .maxAttempts(5)
+                .isUsed(false)
+                .lastResendAt(ZonedDateTime.now().minusSeconds(70))
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(unverifiedUser));
+        when(registrationOtpRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(unverifiedUser))
+                .thenReturn(Optional.of(oldOtp));
+        when(registrationOtpRepository.findAllByUserAndIsUsedFalse(unverifiedUser))
+                .thenReturn(List.of(oldOtp));
+        when(userProfileRepository.findByUser(unverifiedUser)).thenReturn(Optional.empty());
+        when(emailService.sendRegistrationOtpEmail(anyString(), any(), anyString(), anyInt())).thenReturn(false);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> authService.resendOtp(request));
+        assertTrue(ex.getMessage().contains("Gagal mengirimkan kode OTP baru"));
+    }
+
+    @Test
+    @DisplayName("forgotPassword: User ditemukan tapi pengiriman email gagal -> Throws IllegalStateException")
+    void forgotPassword_EmailDeliveryFailure_ThrowsIllegalStateException() {
+        when(userRepository.findByEmailAndDeletedAtIsNull(mockUser.getEmail())).thenReturn(Optional.of(mockUser));
+        when(emailService.sendPasswordResetEmail(eq(mockUser.getEmail()), anyString())).thenReturn(false);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> authService.forgotPassword(mockUser.getEmail()));
+        assertTrue(ex.getMessage().contains("Gagal mengirimkan email reset password"));
     }
 }

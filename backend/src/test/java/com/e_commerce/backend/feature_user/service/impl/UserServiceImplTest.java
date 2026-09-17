@@ -1,7 +1,6 @@
 package com.e_commerce.backend.feature_user.service.impl;
 
 import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
-import com.e_commerce.backend.feature_user.model.Role;
 import com.e_commerce.backend.feature_user.model.UserEntity;
 import com.e_commerce.backend.feature_user.model.UserProfileEntity;
 import com.e_commerce.backend.feature_user.dto.UpdateProfileRequest;
@@ -28,7 +27,6 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;

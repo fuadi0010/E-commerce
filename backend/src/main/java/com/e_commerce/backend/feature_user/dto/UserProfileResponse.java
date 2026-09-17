@@ -1,6 +1,5 @@
 package com.e_commerce.backend.feature_user.dto;
 
-import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 
 import lombok.AllArgsConstructor;

@@ -3,6 +3,7 @@ import { LoginComponent } from './features/auth/pages/login/login.component';
 import { RegisterComponent } from './features/auth/pages/register/register.component';
 import { ForgotPasswordComponent } from './features/auth/pages/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './features/auth/pages/reset-password/reset-password.component';
+import { VerifyOtpComponent } from './features/auth/pages/verify-otp/verify-otp.component';
 import { DashboardLayoutComponent } from './shared/components/layout/dashboard-layout.component';
 import { DashboardComponent } from './features/dashboard/pages/dashboard/dashboard.component';
 import { ProfileComponent } from './features/profile/pages/profile/profile.component';
@@ -52,6 +53,7 @@ export const routes: Routes = [
   // Auth Routes (Public)
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
+  { path: 'verify-otp', component: VerifyOtpComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
 

@@ -13,7 +13,7 @@ Aplikasi Web E-Commerce berskala enterprise yang dibangun menggunakan arsitektur
 * **Basis Data**: PostgreSQL 16 (Relational Database)
 * **ORM & Migrasi**: Hibernate / Spring Data JPA + Flyway Database Migration (V1 s/d V10)
 * **Dokumentasi API**: OpenAPI 3 / Swagger UI (`springdoc-openapi` 2.6.0)
-* **Email Service**: Spring Boot Starter Mail (`JavaMailSender`) terintegrasi Mailtrap Sandbox & Live API
+* **Email Service**: Spring Boot Starter Mail (`JavaMailSender`) terintegrasi Gmail SMTP (STARTTLS port 587)
 * **File Storage**: Penyimpanan lokal aman dengan validasi MIME Type, ukuran file, ekstensi, dan header magic bytes (JPEG, PNG, WebP, dan Dokumen PDF)
 * **Unit & Integration Testing**: JUnit 5 + Mockito 5 + Spring Data JPA Specification Test
 * **Build Tool**: Apache Maven
@@ -95,21 +95,46 @@ Pastikan perangkat lokal Anda telah terpasang:
 
 ---
 
-## ⚙️ Konfigurasi Environment Variables
+## ⚙️ Konfigurasi Environment (.env)
 
-Aplikasi mendukung konfigurasi fleksibel melalui Environment Variable berikut:
+Aplikasi menggunakan sistem manajemen secret terpusat melalui file `.env`. 
 
-| Variabel | Nilai Default / Deskripsi | Wajib |
-|---|---|:---:|
-| `DB_URL` | `jdbc:postgresql://localhost:5432/ecommerce_db` | Ya |
-| `DB_USERNAME` | `postgres` | Ya |
-| `DB_PASSWORD` | Password akun PostgreSQL Anda | Ya |
-| `JWT_SECRET` | Kunci rahasia Base64 (minimal 256-bit) | Ya |
-| `JWT_EXPIRATION_MS` | `86400000` (24 jam dalam milidetik) | Opsional |
-| `MAIL_HOST` | `sandbox.smtp.mailtrap.io` (atau provider SMTP lain) | Opsional |
-| `MAIL_PORT` | `2525` | Opsional |
-| `MAIL_USERNAME` | Username kredensial SMTP | Opsional |
-| `MAIL_PASSWORD` | Password kredensial SMTP | Opsional |
+### Langkah Setup Environment Lokal:
+1. **Salin template konfigurasi `.env.example` menjadi `.env` di root project:**
+   - **PowerShell (Windows):**
+     ```powershell
+     Copy-Item .env.example .env
+     ```
+   - **Bash (Linux / macOS):**
+     ```bash
+     cp .env.example .env
+     ```
+2. **Buka file `.env` dan isi variabel sensitif sesuai konfigurasi lokal Anda:**
+   - `DB_PASSWORD`: Password PostgreSQL lokal Anda.
+   - `JWT_SECRET`: Kunci rahasia minimal 256-bit (dapat dibuat dengan `openssl rand -base64 32`).
+   - Kredensial Gmail SMTP (`MAIL_USERNAME`, `MAIL_PASSWORD` menggunakan Google App Password): Jika ingin menguji pengiriman email nyata.
+3. **Jalankan backend:** Spring Boot 3.3 secara native akan membaca konfigurasi dari `.env` secara otomatis saat aplikasi dimulai. File `.env` sudah masuk ke `.gitignore` sehingga aman dan tidak akan pernah ter-commit ke Git.
+
+### Referensi Variabel Environment:
+
+| Variabel | Deskripsi / Tujuan | Wajib? | Contoh / Default |
+|---|---|:---:|---|
+| `DB_URL` | JDBC Connection URL PostgreSQL | Ya | `jdbc:postgresql://localhost:5432/ecommerce_db` |
+| `DB_USERNAME` | Username akun PostgreSQL | Ya | `postgres` |
+| `DB_PASSWORD` | Password akun PostgreSQL | **Ya (Sensitif)** | `your_postgres_password` |
+| `JWT_SECRET` | Kunci rahasia tanda tangan JWT (min. 256-bit) | **Ya (Sensitif)** | `your_random_jwt_secret` |
+| `JWT_EXPIRATION_MS` | Masa berlaku Access Token (ms) | Opsional | `3600000` (1 jam) |
+| `SERVER_PORT` | Port server Spring Boot | Opsional | `8080` |
+| `FRONTEND_URL` | Base URL frontend untuk reset password link | Opsional | `http://localhost:4200` |
+| `MAIL_HOST` | Host server SMTP Gmail | Opsional | `smtp.gmail.com` |
+| `MAIL_PORT` | Port server SMTP Gmail (STARTTLS) | Opsional | `587` |
+| `MAIL_USERNAME` | Akun Gmail pengirim aplikasi | Opsional (Sensitif) | `your_app@gmail.com` |
+| `MAIL_PASSWORD` | Google App Password (16 karakter) | Opsional (Sensitif) | `your_16_char_app_password` |
+| `MAIL_FROM` | Alamat email pengirim (From header) | Opsional | `your_app@gmail.com` |
+| `MAIL_FROM_NAME` | Nama tampilan pengirim | Opsional | `E-Commerce App` |
+| `OTP_EXPIRATION_MINUTES` | Durasi berlaku kode OTP registrasi (menit) | Opsional | `5` |
+| `OTP_MAX_ATTEMPTS` | Maksimal percobaan OTP salah | Opsional | `5` |
+| `OTP_RESEND_COOLDOWN_SECONDS` | Cooldown kirim ulang OTP (detik) | Opsional | `60` |
 
 ---
 
@@ -120,25 +145,21 @@ Buat basis data baru bernama `ecommerce_db`:
 ```sql
 CREATE DATABASE ecommerce_db;
 ```
-*Catatan*: Flyway Migration akan secara otomatis membuat seluruh skema tabel (`V1` s/d `V10`) beserta data awal (seed data realistis) saat backend pertama kali dijalankan.
-
-Jika Anda ingin menjalankan migrasi basis data secara manual melalui Maven:
-```powershell
-mvn flyway:migrate "-Dflyway.url=jdbc:postgresql://localhost:5432/ecommerce_db" "-Dflyway.user=postgres" "-Dflyway.password=YOUR_PASSWORD"
-```
+*Catatan*: Flyway Migration akan secara otomatis membuat seluruh skema tabel (`V1` s/d `V11`) beserta data awal (seed data realistis) saat backend pertama kali dijalankan.
 
 ---
 
 ### 2. Menjalankan Backend (Spring Boot)
 
 Buka terminal di direktori `backend`:
-
-#### Windows PowerShell:
 ```powershell
-$env:DB_USERNAME="postgres"
-$env:DB_PASSWORD="YOUR_PASSWORD"
-mvn spring-boot:run
+.\mvnw.cmd spring-boot:run
 ```
+Atau di Linux/macOS:
+```bash
+./mvnw spring-boot:run
+```
+*(Variabel akan otomatis dimuat dari `.env`)*
 
 #### Windows Command Prompt (CMD):
 ```cmd
