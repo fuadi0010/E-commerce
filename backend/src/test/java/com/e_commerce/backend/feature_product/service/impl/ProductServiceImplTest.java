@@ -172,12 +172,27 @@ class ProductServiceImplTest {
     // softDeleteProduct
     // ===========================
     @Test
-    @DisplayName("softDeleteProduct: Produk berhasil di-soft-delete")
+    @DisplayName("softDeleteProduct: Produk berhasil di-soft-delete (deletedAt terisi)")
     void softDeleteProduct_Success() {
         when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
+        when(productRepository.save(any(ProductEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
 
         assertDoesNotThrow(() -> productService.softDeleteProduct(productId));
-        verify(productRepository, times(1)).delete(mockProduct);
+        assertNotNull(mockProduct.getDeletedAt());
+        verify(productRepository, times(1)).save(mockProduct);
+    }
+
+    @Test
+    @DisplayName("softDeleteProduct: Produk dengan stok 0 tetap berhasil di-soft-delete")
+    void softDeleteProduct_StockZero_Success() {
+        mockProduct.setStock(0);
+        when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
+        when(productRepository.save(any(ProductEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        assertDoesNotThrow(() -> productService.softDeleteProduct(productId));
+        assertNotNull(mockProduct.getDeletedAt());
+        assertEquals(0, mockProduct.getStock());
+        verify(productRepository, times(1)).save(mockProduct);
     }
 
     // ===========================

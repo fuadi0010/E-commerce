@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 @Service
@@ -95,8 +96,8 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public void softDeleteProduct(UUID productId) {
         ProductEntity product = getProductById(productId);
-        // Rule 15: @SQLDelete handles soft delete automatically via Hibernate
-        productRepository.delete(product);
+        product.setDeletedAt(ZonedDateTime.now());
+        productRepository.save(product);
     }
 
     @Override
