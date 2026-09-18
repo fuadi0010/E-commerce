@@ -116,7 +116,7 @@ class OrderServiceImplTest {
                 () -> orderService.createOrder(userId, request));
         assertEquals("Pesanan tidak boleh kosong", ex.getMessage());
 
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).save(any(OrderEntity.class));
     }
 
     // ===========================

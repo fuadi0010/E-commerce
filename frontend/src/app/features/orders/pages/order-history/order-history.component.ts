@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { OrderService } from '../../../../core/services/order.service';
+import { PaymentService } from '../../../../core/services/payment.service';
 import { OrderResponse } from '../../../../core/models/order.model';
 import { PageResponse } from '../../../../core/models/product.model';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -153,6 +154,20 @@ import { UploadService } from '../../../../core/services/upload.service';
                 <span class="text-sm font-extrabold text-indigo-600">Rp {{ order.totalAmount | number:'1.0-0' }}</span>
               </div>
               <div class="flex items-center gap-2 self-end sm:self-auto">
+                <!-- Tombol Bayar Sekarang — hanya untuk pesanan PENDING -->
+                <button *ngIf="order.status === 'PENDING'"
+                  (click)="payNow(order)"
+                  [disabled]="payingOrderId === order.id"
+                  class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition-all btn-press shadow-sm">
+                  <svg *ngIf="payingOrderId !== order.id" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                  </svg>
+                  <svg *ngIf="payingOrderId === order.id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>{{ payingOrderId === order.id ? 'Memproses...' : 'Bayar Sekarang' }}</span>
+                </button>
                 <button (click)="openDetailModal(order)"
                   class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all btn-press shadow-xs">
                   <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -398,12 +413,16 @@ import { UploadService } from '../../../../core/services/upload.service';
 })
 export class OrderHistoryComponent implements OnInit {
   private orderService = inject(OrderService);
+  private paymentService = inject(PaymentService);
   private toastService = inject(ToastService);
   private uploadService = inject(UploadService);
   private route = inject(ActivatedRoute);
 
   isUploadingDoc = false;
   uploadedDocs: { [orderId: string]: { fileName: string; fileSize: string; url: string; isPdf: boolean } } = {};
+
+  /** ID pesanan yang sedang diproses pembayarannya (untuk loading state tombol). */
+  payingOrderId: string | null = null;
 
   orders: OrderResponse[] = [];
   pageData: PageResponse<OrderResponse> | null = null;
@@ -505,6 +524,55 @@ export class OrderHistoryComponent implements OnInit {
 
   closeDetailModal(): void {
     this.selectedOrder = null;
+  }
+
+  /**
+   * Memulai proses pembayaran Midtrans Snap untuk pesanan dengan status PENDING.
+   */
+  payNow(order: OrderResponse): void {
+    if (this.payingOrderId) return; // Cegah double click
+    this.payingOrderId = order.id;
+
+    this.paymentService.createPayment(order.id).subscribe({
+      next: async (payRes) => {
+        const snapToken = payRes.data?.snapToken;
+        if (!snapToken) {
+          this.payingOrderId = null;
+          this.toastService.warning('Pembayaran', 'Token pembayaran tidak tersedia. Coba lagi beberapa saat.');
+          return;
+        }
+
+        try {
+          await this.paymentService.initAndOpenSnap(snapToken, {
+            onSuccess: () => {
+              this.payingOrderId = null;
+              this.toastService.success('Pembayaran Berhasil', 'Transaksi Anda telah berhasil dikonfirmasi.');
+              this.loadOrders();
+            },
+            onPending: () => {
+              this.payingOrderId = null;
+              this.toastService.info('Menunggu Pembayaran', 'Selesaikan pembayaran Anda sesuai instruksi.');
+              this.loadOrders();
+            },
+            onError: () => {
+              this.payingOrderId = null;
+              this.toastService.error('Pembayaran Gagal', 'Terjadi kesalahan. Silakan coba bayar kembali.');
+            },
+            onClose: () => {
+              this.payingOrderId = null;
+              this.toastService.warning('Pembayaran Dibatalkan', 'Jendela pembayaran ditutup. Pesanan masih tersimpan.');
+            }
+          });
+        } catch {
+          this.payingOrderId = null;
+          this.toastService.error('Gagal Memuat Pembayaran', 'Tidak dapat terhubung ke sistem pembayaran.');
+        }
+      },
+      error: (err) => {
+        this.payingOrderId = null;
+        this.toastService.error('Token Gagal', err.error?.message || 'Gagal mendapatkan token pembayaran.');
+      }
+    });
   }
 
   getStatusBadgeClass(status: string): string {

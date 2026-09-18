@@ -57,6 +57,8 @@ public class SecurityConfig {
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/product/**").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/vouchers/active").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/vouchers/validate").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/payments/midtrans/config").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/payments/midtrans/notification").permitAll()
                     .anyRequest().authenticated()
             );
 

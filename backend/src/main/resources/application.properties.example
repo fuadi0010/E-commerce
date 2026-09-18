@@ -87,3 +87,13 @@ app.mail.from-name=${MAIL_FROM_NAME:E-Commerce App}
 app.otp.expiration-minutes=${OTP_EXPIRATION_MINUTES:5}
 app.otp.max-attempts=${OTP_MAX_ATTEMPTS:5}
 app.otp.resend-cooldown-seconds=${OTP_RESEND_COOLDOWN_SECONDS:60}
+
+# ==========================================
+# 9. MIDTRANS PAYMENT GATEWAY (SANDBOX)
+# ==========================================
+midtrans.server-key=${MIDTRANS_SERVER_KEY:SB-Mid-server-your_sandbox_server_key_here}
+midtrans.client-key=${MIDTRANS_CLIENT_KEY:SB-Mid-client-your_sandbox_client_key_here}
+midtrans.merchant-id=${MIDTRANS_MERCHANT_ID:}
+midtrans.is-production=${MIDTRANS_IS_PRODUCTION:false}
+midtrans.snap-url=${MIDTRANS_SNAP_URL:https://app.sandbox.midtrans.com/snap/snap.js}
+midtrans.api-url=${MIDTRANS_API_URL:https://api.sandbox.midtrans.com}

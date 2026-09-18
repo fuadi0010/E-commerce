@@ -7,7 +7,8 @@ import { OrderService } from '../../../../core/services/order.service';
 import { VoucherService } from '../../../../core/services/voucher.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { UploadService } from '../../../../core/services/upload.service';
-import { OrderRequest } from '../../../../core/models/order.model';
+import { PaymentService } from '../../../../core/services/payment.service';
+import { OrderRequest, OrderResponse } from '../../../../core/models/order.model';
 import { Voucher, VoucherCalculationResponse } from '../../../../core/models/voucher.model';
 
 @Component({
@@ -78,8 +79,11 @@ import { Voucher, VoucherCalculationResponse } from '../../../../core/models/vou
                 [ngClass]="selectedPaymentMethod === 'QRIS' ? 'border-indigo-300 bg-indigo-50/50 shadow-xs' : 'border-slate-200 hover:bg-slate-50'">
                 <input type="radio" name="paymentMethod" value="QRIS" [(ngModel)]="selectedPaymentMethod" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
                 <div class="text-xs">
-                  <span class="font-bold text-slate-900 block">QRIS / Instant Payment (Simulasi Otomatis)</span>
-                  <span class="text-slate-500">Verifikasi instan otomatis tanpa biaya admin tambahan.</span>
+                  <span class="font-bold text-slate-900 block">QRIS / Instant Payment (Midtrans Snap Sandbox)</span>
+                  <span class="text-slate-500 block">Pilih QRIS di jendela pop-up pembayaran Snap.</span>
+                  <span class="text-[10px] text-indigo-600 font-medium mt-0.5 block">
+                    Petunjuk Sandbox: Klik kanan QR Code di jendela Snap &rarr; Salin Alamat Gambar &rarr; Scan di Simulator Midtrans.
+                  </span>
                 </div>
               </label>
 
@@ -94,8 +98,11 @@ import { Voucher, VoucherCalculationResponse } from '../../../../core/models/vou
               </label>
             </div>
 
-            <div class="pt-2 text-[11px] text-slate-400">
-              * Mode simulasi transaksi diaktifkan untuk demo lingkungan development ini.
+            <div class="pt-2 text-[11px] text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+              <span class="font-bold text-slate-700 block mb-0.5">ℹ️ Mode Midtrans Snap Sandbox:</span>
+              <span class="text-slate-500 block leading-relaxed">
+                Pembayaran menggunakan lingkungan simulasi resmi Midtrans Sandbox tanpa dana riil. Jendela Snap.js akan otomatis terbuka setelah Anda mengonfirmasi pesanan.
+              </span>
             </div>
           </div>
 
@@ -407,6 +414,7 @@ export class CheckoutComponent implements OnInit {
   private orderService = inject(OrderService);
   private voucherService = inject(VoucherService);
   private uploadService = inject(UploadService);
+  private paymentService = inject(PaymentService);
   private router = inject(Router);
   private toastService = inject(ToastService);
 
@@ -527,14 +535,69 @@ export class CheckoutComponent implements OnInit {
     };
 
     this.orderService.checkout(request).subscribe({
-      next: () => {
-        this.cartService.clearCart();
-        this.toastService.success('Pesanan Berhasil', 'Pesanan Anda telah berhasil dibuat dan tersimpan di sistem.');
-        this.router.navigate(['/orders']);
+      next: (res) => {
+        const order: OrderResponse | null = res.data ?? null;
+        if (!order) {
+          this.cartService.clearCart();
+          this.toastService.success('Pesanan Berhasil', 'Pesanan telah dibuat.');
+          this.router.navigate(['/orders']);
+          return;
+        }
+        this.openMidtransPayment(order);
       },
       error: (error) => {
         this.isSubmitting = false;
         this.toastService.error('Pesanan Gagal', error.error?.message || 'Gagal memproses pesanan.');
+      }
+    });
+  }
+
+  /**
+   * Mengambil Snap token untuk order yang baru dibuat, lalu membuka Midtrans Snap popup.
+   */
+  private openMidtransPayment(order: OrderResponse): void {
+    this.paymentService.createPayment(order.id).subscribe({
+      next: async (payRes) => {
+        const snapToken = payRes.data?.snapToken;
+        if (!snapToken) {
+          // Tidak ada snapToken — navigasi biasa ke riwayat pesanan
+          this.cartService.clearCart();
+          this.toastService.warning('Pembayaran', 'Token pembayaran tidak tersedia. Silakan bayar melalui riwayat pesanan.');
+          this.router.navigate(['/orders']);
+          return;
+        }
+
+        try {
+          await this.paymentService.initAndOpenSnap(snapToken, {
+            onSuccess: () => {
+              this.cartService.clearCart();
+              this.toastService.success('Pembayaran Berhasil', 'Transaksi Anda telah berhasil dikonfirmasi.');
+              this.router.navigate(['/orders']);
+            },
+            onPending: () => {
+              this.cartService.clearCart();
+              this.toastService.info('Menunggu Pembayaran', 'Pesanan dibuat. Selesaikan pembayaran Anda.');
+              this.router.navigate(['/orders']);
+            },
+            onError: () => {
+              this.isSubmitting = false;
+              this.toastService.error('Pembayaran Gagal', 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.');
+            },
+            onClose: () => {
+              this.isSubmitting = false;
+              this.toastService.warning('Pembayaran Dibatalkan', 'Anda menutup jendela pembayaran. Pesanan masih tersimpan di riwayat Anda.');
+              this.cartService.clearCart();
+              this.router.navigate(['/orders']);
+            }
+          });
+        } catch {
+          this.isSubmitting = false;
+          this.toastService.error('Gagal Memuat Pembayaran', 'Tidak dapat terhubung ke sistem pembayaran. Periksa koneksi internet Anda.');
+        }
+      },
+      error: (err) => {
+        this.isSubmitting = false;
+        this.toastService.error('Token Pembayaran Gagal', err.error?.message || 'Gagal mendapatkan token pembayaran.');
       }
     });
   }
