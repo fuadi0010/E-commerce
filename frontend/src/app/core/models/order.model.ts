@@ -32,3 +32,9 @@ export interface OrderResponse {
   createdAt: string;
   items: OrderItemResponse[];
 }
+
+export interface DashboardStatsResponse {
+  totalOrders: number;
+  totalAmount: number;
+  pendingOrders: number;
+}

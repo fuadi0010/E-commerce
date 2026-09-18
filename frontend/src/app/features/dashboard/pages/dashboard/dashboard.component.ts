@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { TokenService } from '../../../../core/services/token.service';
 import { OrderService } from '../../../../core/services/order.service';
-import { OrderResponse } from '../../../../core/models/order.model';
+import { OrderResponse, DashboardStatsResponse } from '../../../../core/models/order.model';
 import { PageResponse } from '../../../../core/models/product.model';
 
 @Component({
@@ -265,6 +265,7 @@ export class DashboardComponent implements OnInit {
 
   orders: OrderResponse[] = [];
   pageData: PageResponse<OrderResponse> | null = null;
+  stats: DashboardStatsResponse | null = null;
   isLoading = false;
   isAdmin = false;
 
@@ -274,24 +275,51 @@ export class DashboardComponent implements OnInit {
   }
 
   get totalOrders(): number {
-    return this.pageData?.totalElements || this.orders.length;
+    if (this.stats && typeof this.stats.totalOrders === 'number') {
+      return this.stats.totalOrders;
+    }
+    return this.orders.filter(o => o.status?.toUpperCase() !== 'CANCELLED').length;
   }
 
   get totalSpending(): number {
-    return this.orders.reduce((acc, order) => {
-      const amount = typeof order.totalAmount === 'number' ? order.totalAmount : parseFloat(order.totalAmount as any) || 0;
-      return acc + amount;
-    }, 0);
+    if (this.stats && this.stats.totalAmount !== undefined && this.stats.totalAmount !== null) {
+      const amt = this.stats.totalAmount;
+      return typeof amt === 'number' ? amt : parseFloat(amt as any) || 0;
+    }
+    const paidStatuses = ['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'];
+    return this.orders
+      .filter(o => paidStatuses.includes(o.status?.toUpperCase()))
+      .reduce((acc, order) => {
+        const amount = typeof order.totalAmount === 'number' ? order.totalAmount : parseFloat(order.totalAmount as any) || 0;
+        return acc + amount;
+      }, 0);
   }
 
   get pendingOrdersCount(): number {
-    return this.orders.filter(o => o.status === 'PENDING' || o.status === 'SHIPPED').length;
+    if (this.stats && typeof this.stats.pendingOrders === 'number') {
+      return this.stats.pendingOrders;
+    }
+    return this.orders.filter(o => o.status?.toUpperCase() === 'PENDING' || (!this.isAdmin && o.status?.toUpperCase() === 'SHIPPED')).length;
   }
 
   ngOnInit() {
     const user = this.tokenService.getUserInfo();
     this.isAdmin = this.router.url.startsWith('/admin') || (user?.roles?.includes('ROLE_ADMIN') ?? false);
     this.loadOrders();
+    this.loadDashboardStats();
+  }
+
+  loadDashboardStats() {
+    this.orderService.getDashboardStats().subscribe({
+      next: (res) => {
+        if (res.data) {
+          this.stats = res.data;
+        }
+      },
+      error: (err) => {
+        console.warn('Could not fetch backend dashboard stats, using calculated fallback', err);
+      }
+    });
   }
 
   loadOrders() {

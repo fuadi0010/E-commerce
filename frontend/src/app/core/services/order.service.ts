@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { OrderRequest, OrderResponse } from '../models/order.model';
+import { DashboardStatsResponse, OrderRequest, OrderResponse } from '../models/order.model';
 import { PageResponse } from '../models/product.model';
 import { ApiResponse } from '../models/api-response.model';
 
@@ -71,5 +71,9 @@ export class OrderService {
 
   updatePaymentMethod(id: string, paymentMethod: string): Observable<ApiResponse<OrderResponse>> {
     return this.http.patch<ApiResponse<OrderResponse>>(`${this.apiUrl}/${id}/payment-method`, { paymentMethod });
+  }
+
+  getDashboardStats(): Observable<ApiResponse<DashboardStatsResponse>> {
+    return this.http.get<ApiResponse<DashboardStatsResponse>>(`${this.apiUrl}/dashboard-stats`);
   }
 }

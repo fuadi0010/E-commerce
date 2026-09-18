@@ -3,6 +3,7 @@ package com.e_commerce.backend.feature_order.service.impl;
 import com.e_commerce.backend.exception.custom.InsufficientStockException;
 import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
 import com.e_commerce.backend.feature_order.dto.request.OrderRequest;
+import com.e_commerce.backend.feature_order.dto.response.DashboardStatsResponse;
 import com.e_commerce.backend.feature_order.model.OrderEntity;
 import com.e_commerce.backend.feature_order.model.OrderItemEntity;
 import com.e_commerce.backend.feature_order.model.OrderStatus;
@@ -232,6 +233,13 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("Hanya pesanan dengan status PENDING yang dapat dibatalkan. Status saat ini: " + order.getStatus());
         }
 
+        // ORDER-CANCEL-DASHBOARD-001: Tolak pembatalan jika pembayaran sudah berhasil
+        paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId).ifPresent(p -> {
+            if (p.getStatus() != null && p.getStatus().isSuccess()) {
+                throw new IllegalStateException("Pesanan yang sudah dibayar tidak dapat dibatalkan.");
+            }
+        });
+
         // Kembalikan kuantitas stok produk
         restoreStockForOrder(order);
 
@@ -281,5 +289,44 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Updated payment method for order {} to {}", orderId, paymentMethod);
         return orderRepository.save(order);
+    }
+
+    private static final java.util.Set<OrderStatus> PAID_STATUSES = java.util.Set.of(
+            OrderStatus.PAID,
+            OrderStatus.SHIPPED,
+            OrderStatus.DELIVERED,
+            OrderStatus.COMPLETED
+    );
+
+    private static final java.util.Set<OrderStatus> CUSTOMER_PENDING_STATUSES = java.util.Set.of(
+            OrderStatus.PENDING,
+            OrderStatus.SHIPPED
+    );
+
+    @Override
+    @Transactional(readOnly = true)
+    public DashboardStatsResponse getDashboardStats(UUID userId, boolean isAdmin) {
+        if (isAdmin) {
+            long totalOrders = orderRepository.countByStatusNot(OrderStatus.CANCELLED);
+            BigDecimal totalRevenue = orderRepository.sumTotalAmountByStatusIn(PAID_STATUSES);
+            long pendingOrders = orderRepository.countByStatus(OrderStatus.PENDING);
+            return DashboardStatsResponse.builder()
+                    .totalOrders(totalOrders)
+                    .totalAmount(totalRevenue != null ? totalRevenue : BigDecimal.ZERO)
+                    .pendingOrders(pendingOrders)
+                    .build();
+        } else {
+            if (userId == null) {
+                throw new IllegalArgumentException("User ID tidak boleh kosong untuk customer dashboard");
+            }
+            long totalOrders = orderRepository.countByUserIdAndStatusNot(userId, OrderStatus.CANCELLED);
+            BigDecimal totalSpending = orderRepository.sumTotalAmountByUserIdAndStatusIn(userId, PAID_STATUSES);
+            long pendingOrders = orderRepository.countByUserIdAndStatusIn(userId, CUSTOMER_PENDING_STATUSES);
+            return DashboardStatsResponse.builder()
+                    .totalOrders(totalOrders)
+                    .totalAmount(totalSpending != null ? totalSpending : BigDecimal.ZERO)
+                    .pendingOrders(pendingOrders)
+                    .build();
+        }
     }
 }

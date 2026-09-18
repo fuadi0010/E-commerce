@@ -3,6 +3,7 @@ package com.e_commerce.backend.feature_order.controller;
 import com.e_commerce.backend.common.dto.ApiResponse;
 import com.e_commerce.backend.feature_order.dto.request.OrderRequest;
 import com.e_commerce.backend.feature_order.dto.request.OrderStatusRequest;
+import com.e_commerce.backend.feature_order.dto.response.DashboardStatsResponse;
 import com.e_commerce.backend.feature_order.dto.response.OrderResponse;
 import com.e_commerce.backend.feature_order.mapper.OrderMapper;
 import com.e_commerce.backend.feature_order.model.OrderEntity;
@@ -168,5 +169,21 @@ public class OrderController {
         OrderEntity order = orderService.updatePaymentMethod(id, isAdmin ? null : userDetails.getId(), paymentMethod);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Metode pembayaran berhasil diubah",
                 orderMapper.toResponse(order)));
+    }
+
+    // GET /api/orders/dashboard-stats — Customer & Admin (ORDER-CANCEL-DASHBOARD-001)
+    @GetMapping("/dashboard-stats")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<DashboardStatsResponse>> getDashboardStats(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        DashboardStatsResponse stats = orderService.getDashboardStats(
+                isAdmin ? null : userDetails.getId(), isAdmin);
+
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Statistik Dashboard", stats));
     }
 }

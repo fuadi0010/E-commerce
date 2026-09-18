@@ -30,4 +30,7 @@ public interface OrderService {
 
     /** ORDER-PAYMENT-FIX-001: Ubah metode pembayaran pada pesanan berstatus PENDING */
     OrderEntity updatePaymentMethod(UUID orderId, UUID userId, String paymentMethod);
+
+    /** ORDER-CANCEL-DASHBOARD-001: Ringkasan statistik pesanan untuk dashboard customer dan admin */
+    com.e_commerce.backend.feature_order.dto.response.DashboardStatsResponse getDashboardStats(UUID userId, boolean isAdmin);
 }

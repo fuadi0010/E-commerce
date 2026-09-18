@@ -35,9 +35,12 @@ import org.springframework.data.domain.Pageable;
 import com.e_commerce.backend.feature_payment.model.PaymentEntity;
 import com.e_commerce.backend.feature_payment.model.PaymentStatus;
 import com.e_commerce.backend.feature_payment.repository.PaymentRepository;
+import com.e_commerce.backend.feature_order.dto.response.DashboardStatsResponse;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -649,5 +652,74 @@ class OrderServiceImplTest {
         UUID orderId = UUID.randomUUID();
         assertThrows(IllegalArgumentException.class,
                 () -> orderService.updatePaymentMethod(orderId, mockUser.getId(), "   "));
+    }
+
+    // ===========================
+    // ORDER-CANCEL-DASHBOARD-001: Tests
+    // ===========================
+    @Test
+    @DisplayName("cancelOrder: Order PENDING tapi pembayaran sudah SETTLEMENT -> Throws IllegalStateException")
+    void cancelOrder_PaymentAlreadySettled_ThrowsIllegalStateException() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PENDING);
+
+        PaymentEntity settledPayment = PaymentEntity.builder()
+                .id(UUID.randomUUID())
+                .order(order)
+                .status(PaymentStatus.SETTLEMENT)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(settledPayment));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> orderService.cancelOrder(orderId, mockUser.getId()));
+
+        assertTrue(ex.getMessage().contains("sudah dibayar tidak dapat dibatalkan"));
+        verify(orderRepository, never()).save(any());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("getDashboardStats: Customer dashboard mengecualikan CANCELLED dari totalOrders dan hanya menghitung order lunas ke totalAmount")
+    void getDashboardStats_Customer_ExcludesCancelledAndUnpaid() {
+        UUID customerId = mockUser.getId();
+
+        when(orderRepository.countByUserIdAndStatusNot(customerId, OrderStatus.CANCELLED)).thenReturn(2L);
+        when(orderRepository.sumTotalAmountByUserIdAndStatusIn(eq(customerId), anyCollection())).thenReturn(new BigDecimal("175000.00"));
+        when(orderRepository.countByUserIdAndStatusIn(eq(customerId), anyCollection())).thenReturn(1L);
+
+        DashboardStatsResponse stats = orderService.getDashboardStats(customerId, false);
+
+        assertNotNull(stats);
+        assertEquals(2L, stats.getTotalOrders());
+        assertEquals(new BigDecimal("175000.00"), stats.getTotalAmount());
+        assertEquals(1L, stats.getPendingOrders());
+
+        verify(orderRepository, times(1)).countByUserIdAndStatusNot(customerId, OrderStatus.CANCELLED);
+        verify(orderRepository, times(1)).sumTotalAmountByUserIdAndStatusIn(eq(customerId), anyCollection());
+        verify(orderRepository, times(1)).countByUserIdAndStatusIn(eq(customerId), anyCollection());
+    }
+
+    @Test
+    @DisplayName("getDashboardStats: Admin dashboard mengecualikan CANCELLED dari totalOrders dan pendapatan hanya dari status lunas")
+    void getDashboardStats_Admin_ExcludesCancelledAndUnpaid() {
+        when(orderRepository.countByStatusNot(OrderStatus.CANCELLED)).thenReturn(5L);
+        when(orderRepository.sumTotalAmountByStatusIn(anyCollection())).thenReturn(new BigDecimal("175000.00"));
+        when(orderRepository.countByStatus(OrderStatus.PENDING)).thenReturn(2L);
+
+        DashboardStatsResponse stats = orderService.getDashboardStats(null, true);
+
+        assertNotNull(stats);
+        assertEquals(5L, stats.getTotalOrders());
+        assertEquals(new BigDecimal("175000.00"), stats.getTotalAmount());
+        assertEquals(2L, stats.getPendingOrders());
+
+        verify(orderRepository, times(1)).countByStatusNot(OrderStatus.CANCELLED);
+        verify(orderRepository, times(1)).sumTotalAmountByStatusIn(anyCollection());
+        verify(orderRepository, times(1)).countByStatus(OrderStatus.PENDING);
     }
 }
