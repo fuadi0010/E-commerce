@@ -15,7 +15,9 @@ import com.e_commerce.backend.feature_product.repository.ProductRepository;
 import com.e_commerce.backend.feature_user.model.UserEntity;
 import com.e_commerce.backend.feature_user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -64,6 +67,8 @@ public class OrderServiceImpl implements OrderService {
         order.setUser(user);
         order.setStatus(OrderStatus.PENDING);
         order.setTotalAmount(BigDecimal.ZERO);
+        order.setPaymentMethod(request.getPaymentMethod());
+        order.setPaymentProofUrl(request.getPaymentProofUrl());
         OrderEntity savedOrder = orderRepository.save(order);
 
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -110,8 +115,58 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderEntity updateOrderStatus(UUID orderId, OrderStatus newStatus) {
         OrderEntity order = getOrderById(orderId);
+        OrderStatus oldStatus = order.getStatus();
+
+        if (oldStatus == newStatus) {
+            return order;
+        }
+
+        // Mencegah perubahan status dari pesanan yang sudah dibatalkan
+        if (oldStatus == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("Pesanan yang sudah dibatalkan tidak dapat diubah statusnya.");
+        }
+
+        // FINDING-001: Jika pesanan dibatalkan (CANCELLED), kembalikan kuantitas stok ke produk
+        if (newStatus == OrderStatus.CANCELLED) {
+            restoreStockForOrder(order);
+        }
+
         order.setStatus(newStatus);
         return orderRepository.save(order);
+    }
+
+    private void restoreStockForOrder(OrderEntity order) {
+        if (order.getItems() == null || order.getItems().isEmpty()) {
+            return;
+        }
+
+        // Urutkan item berdasarkan productId secara deterministik untuk mencegah deadlock
+        List<OrderItemEntity> sortedItems = new ArrayList<>(order.getItems());
+        Collections.sort(sortedItems, Comparator.comparing(
+                item -> item.getProduct() != null ? item.getProduct().getId() : null,
+                Comparator.nullsLast(Comparator.naturalOrder())
+        ));
+
+        for (OrderItemEntity item : sortedItems) {
+            if (item.getProduct() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
+                continue;
+            }
+
+            ProductEntity product = productRepository.findByIdWithPessimisticLock(item.getProduct().getId())
+                    .orElse(null);
+
+            if (product != null) {
+                int previousStock = product.getStock() != null ? product.getStock() : 0;
+                int restoredStock = previousStock + item.getQuantity();
+                product.setStock(restoredStock);
+                productRepository.save(product);
+                log.info("Restored stock for product {} ({}): {} -> {} (Order {} cancelled)",
+                        product.getId(), product.getName(), previousStock, restoredStock, order.getId());
+            } else {
+                log.warn("Cannot restore stock for product {} in cancelled order {}: product not found",
+                        item.getProduct().getId(), order.getId());
+            }
+        }
     }
 
     @Override
@@ -142,5 +197,20 @@ public class OrderServiceImpl implements OrderService {
                                                      ZonedDateTime endDate, Pageable pageable) {
         Specification<OrderEntity> spec = OrderSpecification.withFilters(status, startDate, endDate);
         return orderRepository.findAll(spec, pageable);
+    }
+
+    @Override
+    @Transactional
+    public OrderEntity updatePaymentProof(UUID orderId, UUID userId, String paymentProofUrl) {
+        OrderEntity order = getOrderById(orderId);
+
+        // IDOR check: hanya pemilik pesanan yang dapat memperbarui bukti bayar (kecuali admin, userId = null)
+        if (userId != null && !order.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Anda tidak memiliki akses untuk mengubah pesanan ini.");
+        }
+
+        order.setPaymentProofUrl(paymentProofUrl);
+        log.info("Updated payment proof URL for order {}: {}", orderId, paymentProofUrl);
+        return orderRepository.save(order);
     }
 }

@@ -74,8 +74,9 @@ import { Voucher, VoucherCalculationResponse } from '../../../../core/models/vou
 
             <div class="space-y-3">
               <!-- Method 1: Instant QRIS -->
-              <label class="flex items-start gap-3 p-3.5 rounded-2xl border border-indigo-200 bg-indigo-50/40 cursor-pointer">
-                <input type="radio" name="paymentMethod" value="QRIS" checked class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+              <label class="flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all"
+                [ngClass]="selectedPaymentMethod === 'QRIS' ? 'border-indigo-300 bg-indigo-50/50 shadow-xs' : 'border-slate-200 hover:bg-slate-50'">
+                <input type="radio" name="paymentMethod" value="QRIS" [(ngModel)]="selectedPaymentMethod" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
                 <div class="text-xs">
                   <span class="font-bold text-slate-900 block">QRIS / Instant Payment (Simulasi Otomatis)</span>
                   <span class="text-slate-500">Verifikasi instan otomatis tanpa biaya admin tambahan.</span>
@@ -83,8 +84,9 @@ import { Voucher, VoucherCalculationResponse } from '../../../../core/models/vou
               </label>
 
               <!-- Method 2: Virtual Account -->
-              <label class="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                <input type="radio" name="paymentMethod" value="VA" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+              <label class="flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all"
+                [ngClass]="selectedPaymentMethod === 'VA' ? 'border-indigo-300 bg-indigo-50/50 shadow-xs' : 'border-slate-200 hover:bg-slate-50'">
+                <input type="radio" name="paymentMethod" value="VA" [(ngModel)]="selectedPaymentMethod" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
                 <div class="text-xs">
                   <span class="font-bold text-slate-900 block">Transfer Virtual Account (BCA / Mandiri / BRI / BNI)</span>
                   <span class="text-slate-500">Nomor rekening unik akan disediakan setelah checkout.</span>
@@ -409,6 +411,7 @@ export class CheckoutComponent implements OnInit {
   private toastService = inject(ToastService);
 
   isSubmitting = false;
+  selectedPaymentMethod = 'QRIS';
 
   // Document states (Rule: PDF / Image upload for payment proof / documents)
   isUploadingDoc = false;
@@ -518,7 +521,9 @@ export class CheckoutComponent implements OnInit {
       items: this.cartService.cartItems().map(item => ({
         productId: item.product.id,
         quantity: item.quantity
-      }))
+      })),
+      paymentMethod: this.selectedPaymentMethod,
+      paymentProofUrl: this.uploadedDoc?.url || undefined
     };
 
     this.orderService.checkout(request).subscribe({

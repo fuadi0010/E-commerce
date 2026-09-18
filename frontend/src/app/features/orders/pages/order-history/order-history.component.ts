@@ -108,6 +108,9 @@ import { UploadService } from '../../../../core/services/upload.service';
                 <span class="text-slate-500">{{ order.createdAt | date:'dd MMM yyyy, HH:mm' }}</span>
               </div>
               <div class="flex items-center gap-2">
+                <span *ngIf="order.paymentMethod" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                  {{ order.paymentMethod }}
+                </span>
                 <span [class]="getStatusBadgeClass(order.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border">
                   <span class="w-1.5 h-1.5 rounded-full mr-1.5" [class]="getStatusDotClass(order.status)"></span>
                   {{ order.status }}
@@ -489,6 +492,15 @@ export class OrderHistoryComponent implements OnInit {
 
   openDetailModal(order: OrderResponse): void {
     this.selectedOrder = order;
+    if (order.paymentProofUrl && !this.uploadedDocs[order.id]) {
+      const isPdf = order.paymentProofUrl.toLowerCase().endsWith('.pdf');
+      this.uploadedDocs[order.id] = {
+        fileName: isPdf ? 'Dokumen_Bukti_Transaksi.pdf' : 'Bukti_Pembayaran.jpg',
+        fileSize: 'Tersimpan di Sistem',
+        url: order.paymentProofUrl,
+        isPdf: isPdf
+      };
+    }
   }
 
   closeDetailModal(): void {
@@ -574,16 +586,34 @@ export class OrderHistoryComponent implements OnInit {
           ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
           : `${Math.round(file.size / 1024)} KB`;
 
+        const docUrl = res.data || '';
         this.uploadedDocs[orderId] = {
           fileName: file.name,
           fileSize: sizeFormatted,
-          url: res.data || '',
+          url: docUrl,
           isPdf: isPdf
         };
 
-        this.isUploadingDoc = false;
-        this.toastService.success('Unggah Berhasil', isPdf ? 'Dokumen PDF bukti pembayaran berhasil diunggah' : 'Bukti pembayaran berhasil diunggah');
-        input.value = '';
+        // FINDING-003: Persistensi URL dokumen bukti pembayaran ke database order
+        this.orderService.updatePaymentProof(orderId, docUrl).subscribe({
+          next: () => {
+            this.isUploadingDoc = false;
+            if (this.selectedOrder && this.selectedOrder.id === orderId) {
+              this.selectedOrder.paymentProofUrl = docUrl;
+            }
+            const idx = this.orders.findIndex(o => o.id === orderId);
+            if (idx !== -1) {
+              this.orders[idx].paymentProofUrl = docUrl;
+            }
+            this.toastService.success('Tersimpan', isPdf ? 'Dokumen PDF bukti pembayaran berhasil disimpan ke pesanan' : 'Bukti pembayaran berhasil disimpan ke pesanan');
+            input.value = '';
+          },
+          error: (err) => {
+            this.isUploadingDoc = false;
+            this.toastService.error('Gagal Menyimpan', err.error?.message || 'Gagal menyimpan lampiran bukti pembayaran ke pesanan');
+            input.value = '';
+          }
+        });
       },
       error: (err) => {
         this.isUploadingDoc = false;
@@ -594,7 +624,21 @@ export class OrderHistoryComponent implements OnInit {
   }
 
   removeDocument(orderId: string): void {
-    delete this.uploadedDocs[orderId];
-    this.toastService.info('Dokumen Dihapus', 'Lampiran bukti pembayaran telah dilepas');
+    this.orderService.updatePaymentProof(orderId, '').subscribe({
+      next: () => {
+        delete this.uploadedDocs[orderId];
+        if (this.selectedOrder && this.selectedOrder.id === orderId) {
+          this.selectedOrder.paymentProofUrl = undefined;
+        }
+        const idx = this.orders.findIndex(o => o.id === orderId);
+        if (idx !== -1) {
+          this.orders[idx].paymentProofUrl = undefined;
+        }
+        this.toastService.info('Dokumen Dihapus', 'Lampiran bukti pembayaran telah dihapus dari pesanan');
+      },
+      error: (err) => {
+        this.toastService.error('Gagal Menghapus', err.error?.message || 'Gagal menghapus dokumen dari pesanan');
+      }
+    });
   }
 }

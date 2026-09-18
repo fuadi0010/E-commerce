@@ -120,4 +120,21 @@ public class OrderController {
 
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Semua Pesanan", orders));
     }
+
+    // PATCH /api/orders/{id}/payment-proof — Customer (own) or Admin
+    @PatchMapping("/{id}/payment-proof")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<OrderResponse>> updatePaymentProof(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestBody java.util.Map<String, String> body) {
+
+        String paymentProofUrl = body != null ? body.get("paymentProofUrl") : null;
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        OrderEntity order = orderService.updatePaymentProof(id, isAdmin ? null : userDetails.getId(), paymentProofUrl);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Bukti pembayaran berhasil diperbarui",
+                orderMapper.toResponse(order)));
+    }
 }

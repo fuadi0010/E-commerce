@@ -60,4 +60,8 @@ export class OrderService {
   updateOrderStatus(id: string, status: string): Observable<ApiResponse<OrderResponse>> {
     return this.http.patch<ApiResponse<OrderResponse>>(`${this.apiUrl}/${id}/status`, { status });
   }
+
+  updatePaymentProof(id: string, paymentProofUrl: string): Observable<ApiResponse<OrderResponse>> {
+    return this.http.patch<ApiResponse<OrderResponse>>(`${this.apiUrl}/${id}/payment-proof`, { paymentProofUrl });
+  }
 }

@@ -14,6 +14,12 @@ import java.util.UUID;
 @AllArgsConstructor
 public class OrderRequest {
     private List<OrderItemRequest> items;
+    private String paymentMethod;
+    private String paymentProofUrl;
+
+    public OrderRequest(List<OrderItemRequest> items) {
+        this.items = items;
+    }
 
     @Data
     @Builder

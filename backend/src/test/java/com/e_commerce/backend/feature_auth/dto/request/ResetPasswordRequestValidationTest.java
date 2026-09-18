@@ -24,24 +24,40 @@ class ResetPasswordRequestValidationTest {
     }
 
     @Test
-    @DisplayName("Valid request -> Tidak ada violation")
-    void validRequest_NoViolations() {
-        ResetPasswordRequest request = new ResetPasswordRequest();
-        request.setToken("valid-token-123");
-        request.setNewPassword("Rahasia123!");
-        request.setConfirmPassword("Rahasia123!");
+    @DisplayName("Valid request Mode A (Token) -> Tidak ada violation")
+    void validRequest_WithToken_NoViolations() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .token("valid-token-123")
+                .newPassword("Rahasia123!")
+                .confirmPassword("Rahasia123!")
+                .build();
 
         Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
-        assertTrue(violations.isEmpty(), "Harusnya tidak ada constraint violation");
+        assertTrue(violations.isEmpty(), "Harusnya tidak ada constraint violation untuk token valid");
+    }
+
+    @Test
+    @DisplayName("Valid request Mode B (Email + ResetCode) -> Tidak ada violation")
+    void validRequest_WithEmailAndResetCode_NoViolations() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("user@example.com")
+                .resetCode("123456")
+                .newPassword("Rahasia123!")
+                .confirmPassword("Rahasia123!")
+                .build();
+
+        Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
+        assertTrue(violations.isEmpty(), "Harusnya tidak ada constraint violation untuk email + kode 6 digit valid");
     }
 
     @Test
     @DisplayName("Password baru kosong -> Validation error pada newPassword")
     void blankNewPassword_ProducesViolation() {
-        ResetPasswordRequest request = new ResetPasswordRequest();
-        request.setToken("valid-token-123");
-        request.setNewPassword("");
-        request.setConfirmPassword("Rahasia123!");
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .token("valid-token-123")
+                .newPassword("")
+                .confirmPassword("Rahasia123!")
+                .build();
 
         Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
         assertFalse(violations.isEmpty());
@@ -49,12 +65,13 @@ class ResetPasswordRequestValidationTest {
     }
 
     @Test
-    @DisplayName("Confirm password kosong (gejala bug utama) -> Validation error pada confirmPassword")
+    @DisplayName("Confirm password kosong -> Validation error pada confirmPassword")
     void blankConfirmPassword_ProducesViolation() {
-        ResetPasswordRequest request = new ResetPasswordRequest();
-        request.setToken("valid-token-123");
-        request.setNewPassword("Rahasia123!");
-        request.setConfirmPassword(null); // seperti yang terjadi ketika frontend lupa menyertakan field ini
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .token("valid-token-123")
+                .newPassword("Rahasia123!")
+                .confirmPassword(null)
+                .build();
 
         Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
         assertFalse(violations.isEmpty(), "Harus ada violation karena confirmPassword null/blank");
@@ -67,10 +84,11 @@ class ResetPasswordRequestValidationTest {
     @Test
     @DisplayName("Password terlalu pendek (< 8 karakter) -> Validation error")
     void shortPassword_ProducesViolation() {
-        ResetPasswordRequest request = new ResetPasswordRequest();
-        request.setToken("valid-token-123");
-        request.setNewPassword("Ab1!");
-        request.setConfirmPassword("Ab1!");
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .token("valid-token-123")
+                .newPassword("Ab1!")
+                .confirmPassword("Ab1!")
+                .build();
 
         Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
         assertFalse(violations.isEmpty());
@@ -80,10 +98,11 @@ class ResetPasswordRequestValidationTest {
     @Test
     @DisplayName("Password tanpa huruf besar atau angka -> Validation error regex pattern")
     void passwordPatternMismatch_ProducesViolation() {
-        ResetPasswordRequest request = new ResetPasswordRequest();
-        request.setToken("valid-token-123");
-        request.setNewPassword("hanyahurufkecilsemua");
-        request.setConfirmPassword("hanyahurufkecilsemua");
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .token("valid-token-123")
+                .newPassword("hanyahurufkecilsemua")
+                .confirmPassword("hanyahurufkecilsemua")
+                .build();
 
         Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
         assertFalse(violations.isEmpty());
@@ -94,15 +113,38 @@ class ResetPasswordRequestValidationTest {
     }
 
     @Test
-    @DisplayName("Token kosong -> Validation error pada token")
-    void blankToken_ProducesViolation() {
-        ResetPasswordRequest request = new ResetPasswordRequest();
-        request.setToken("   ");
-        request.setNewPassword("Rahasia123!");
-        request.setConfirmPassword("Rahasia123!");
+    @DisplayName("Format email tidak valid pada Mode B -> Validation error pada email")
+    void invalidEmailFormat_ProducesViolation() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("bukan-email-valid")
+                .resetCode("123456")
+                .newPassword("Rahasia123!")
+                .confirmPassword("Rahasia123!")
+                .build();
 
         Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
         assertFalse(violations.isEmpty());
-        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("token")));
+        assertTrue(violations.stream().anyMatch(v -> 
+                v.getPropertyPath().toString().equals("email") &&
+                v.getMessage().contains("Format email tidak valid")
+        ));
+    }
+
+    @Test
+    @DisplayName("Format resetCode bukan 6 digit angka -> Validation error pada resetCode")
+    void invalidResetCodePattern_ProducesViolation() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("user@example.com")
+                .resetCode("1234A")
+                .newPassword("Rahasia123!")
+                .confirmPassword("Rahasia123!")
+                .build();
+
+        Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
+        assertFalse(violations.isEmpty());
+        assertTrue(violations.stream().anyMatch(v -> 
+                v.getPropertyPath().toString().equals("resetCode") &&
+                v.getMessage().contains("Kode reset password harus berupa 6 digit angka")
+        ));
     }
 }

@@ -49,6 +49,12 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(name = "payment_method", length = 50)
+    private String paymentMethod;
+
+    @Column(name = "payment_proof_url", length = 500)
+    private String paymentProofUrl;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItemEntity> items = new ArrayList<>();

@@ -10,7 +10,9 @@ export interface UserInfo {
 }
 
 export interface ResetPasswordRequest {
-  token: string;
+  token?: string;
+  email?: string;
+  resetCode?: string;
   newPassword: string;
   confirmPassword: string;
 }

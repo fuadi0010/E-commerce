@@ -15,6 +15,8 @@ public class OrderResponse {
     private UUID userId;
     private String status;
     private BigDecimal totalAmount;
+    private String paymentMethod;
+    private String paymentProofUrl;
     private ZonedDateTime createdAt;
     private List<OrderItemResponse> items;
 }

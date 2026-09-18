@@ -29,6 +29,8 @@ public class OrderMapper {
                 .userId(entity.getUser().getId())
                 .status(entity.getStatus().name())
                 .totalAmount(entity.getTotalAmount())
+                .paymentMethod(entity.getPaymentMethod())
+                .paymentProofUrl(entity.getPaymentProofUrl())
                 .createdAt(entity.getCreatedAt())
                 .items(items)
                 .build();

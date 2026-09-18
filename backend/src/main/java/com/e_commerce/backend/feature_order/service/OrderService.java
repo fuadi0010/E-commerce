@@ -21,4 +21,7 @@ public interface OrderService {
 
     /** Rule 22: Admin — Get all orders with filters */
     Page<OrderEntity> getAllOrdersWithFilters(OrderStatus status, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable);
+
+    /** FINDING-003: Update payment proof URL for an order */
+    OrderEntity updatePaymentProof(UUID orderId, UUID userId, String paymentProofUrl);
 }

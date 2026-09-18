@@ -4,6 +4,7 @@ import com.e_commerce.backend.exception.custom.InsufficientStockException;
 import com.e_commerce.backend.exception.custom.ResourceNotFoundException;
 import com.e_commerce.backend.feature_order.dto.request.OrderRequest;
 import com.e_commerce.backend.feature_order.model.OrderEntity;
+import com.e_commerce.backend.feature_order.model.OrderItemEntity;
 import com.e_commerce.backend.feature_order.model.OrderStatus;
 import com.e_commerce.backend.feature_order.repository.OrderItemRepository;
 import com.e_commerce.backend.feature_order.repository.OrderRepository;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -198,6 +200,94 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).save(order);
     }
 
+    @Test
+    @DisplayName("updateOrderStatus: Batalkan order (CANCELLED) -> Berhasil mengembalikan stok produk")
+    void updateOrderStatus_CancelOrder_RestoresStockSuccessfully() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.PENDING);
+
+        ProductEntity prod1 = ProductEntity.builder()
+                .id(UUID.randomUUID())
+                .name("Kemeja Putih")
+                .stock(10)
+                .build();
+
+        ProductEntity prod2 = ProductEntity.builder()
+                .id(UUID.randomUUID())
+                .name("Celana Jeans")
+                .stock(5)
+                .build();
+
+        OrderItemEntity item1 = OrderItemEntity.builder()
+                .id(UUID.randomUUID())
+                .order(order)
+                .product(prod1)
+                .quantity(3)
+                .build();
+
+        OrderItemEntity item2 = OrderItemEntity.builder()
+                .id(UUID.randomUUID())
+                .order(order)
+                .product(prod2)
+                .quantity(2)
+                .build();
+
+        order.setItems(new ArrayList<>(List.of(item1, item2)));
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(productRepository.findByIdWithPessimisticLock(prod1.getId())).thenReturn(Optional.of(prod1));
+        when(productRepository.findByIdWithPessimisticLock(prod2.getId())).thenReturn(Optional.of(prod2));
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        OrderEntity result = orderService.updateOrderStatus(orderId, OrderStatus.CANCELLED);
+
+        assertEquals(OrderStatus.CANCELLED, result.getStatus());
+        assertEquals(13, prod1.getStock(), "Stok produk 1 harus bertambah dari 10 menjadi 13");
+        assertEquals(7, prod2.getStock(), "Stok produk 2 harus bertambah dari 5 menjadi 7");
+
+        verify(productRepository, times(1)).save(prod1);
+        verify(productRepository, times(1)).save(prod2);
+        verify(orderRepository, times(1)).save(order);
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: Status sudah CANCELLED lalu di-update CANCELLED lagi -> Idempoten, tidak menambah stok lagi")
+    void updateOrderStatus_AlreadyCancelled_IdempotentNoStockAdded() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.CANCELLED);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        OrderEntity result = orderService.updateOrderStatus(orderId, OrderStatus.CANCELLED);
+
+        assertEquals(OrderStatus.CANCELLED, result.getStatus());
+        verify(productRepository, never()).findByIdWithPessimisticLock(any());
+        verify(productRepository, never()).save(any());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: Pesanan yang sudah CANCELLED tidak dapat diubah ke status lain -> Throws IllegalStateException")
+    void updateOrderStatus_AlreadyCancelled_CannotChangeToOtherStatus() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.CANCELLED);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> orderService.updateOrderStatus(orderId, OrderStatus.PAID));
+
+        assertTrue(ex.getMessage().contains("sudah dibatalkan tidak dapat diubah"));
+        verify(productRepository, never()).save(any());
+        verify(orderRepository, never()).save(any());
+    }
+
     // ===========================
     // getOrderById
     // ===========================
@@ -322,5 +412,66 @@ class OrderServiceImplTest {
         assertEquals(1, result.getTotalElements());
         verify(orderRepository).findByUserId(userId, pageable);
         verify(orderRepository, never()).findByUserIdAndStatus(any(), any(), any());
+    }
+
+    // ===========================
+    // FINDING-002 & FINDING-003: Payment Method & Proof Tests
+    // ===========================
+    @Test
+    @DisplayName("createOrder: Menyimpan paymentMethod dan paymentProofUrl saat checkout")
+    void createOrder_WithPaymentMethodAndProof_PersistsCorrectly() {
+        OrderRequest.OrderItemRequest itemReq = new OrderRequest.OrderItemRequest(productId, 1);
+        OrderRequest request = OrderRequest.builder()
+                .items(List.of(itemReq))
+                .paymentMethod("QRIS")
+                .paymentProofUrl("https://example.com/proofs/receipt.pdf")
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(productRepository.findByIdWithPessimisticLock(productId)).thenReturn(Optional.of(mockProduct));
+        when(orderRepository.save(any(OrderEntity.class)))
+                .thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        OrderEntity result = orderService.createOrder(userId, request);
+
+        assertNotNull(result);
+        assertEquals("QRIS", result.getPaymentMethod());
+        assertEquals("https://example.com/proofs/receipt.pdf", result.getPaymentProofUrl());
+    }
+
+    @Test
+    @DisplayName("updatePaymentProof: Berhasil memperbarui bukti pembayaran pesanan oleh pemiliknya")
+    void updatePaymentProof_Owner_Success() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PENDING);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(OrderEntity.class)))
+                .thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        OrderEntity result = orderService.updatePaymentProof(orderId, mockUser.getId(), "https://example.com/new_proof.pdf");
+
+        assertEquals("https://example.com/new_proof.pdf", result.getPaymentProofUrl());
+        verify(orderRepository, times(1)).save(order);
+    }
+
+    @Test
+    @DisplayName("updatePaymentProof: Bukan pemilik pesanan (IDOR) -> Throws AccessDeniedException")
+    void updatePaymentProof_NotOwner_ThrowsAccessDeniedException() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+
+        UUID differentUserId = UUID.randomUUID();
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        assertThrows(AccessDeniedException.class,
+                () -> orderService.updatePaymentProof(orderId, differentUserId, "https://example.com/fraud_proof.pdf"));
+
+        verify(orderRepository, never()).save(any());
     }
 }

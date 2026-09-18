@@ -347,24 +347,80 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Konfirmasi password baru tidak cocok!");
         }
 
-        String hashedToken = hashToken(request.getToken());
-        PasswordResetTokenEntity resetTokenEntity = passwordResetTokenRepository.findByTokenHash(hashedToken)
-                .orElseThrow(() -> new IllegalArgumentException("Token tidak valid atau salah."));
+        boolean hasToken = request.getToken() != null && !request.getToken().trim().isEmpty();
+        boolean hasEmailAndCode = request.getEmail() != null && !request.getEmail().trim().isEmpty()
+                && request.getResetCode() != null && !request.getResetCode().trim().isEmpty();
 
-        if (resetTokenEntity.getIsUsed()) {
-            throw new IllegalArgumentException("Token sudah pernah digunakan.");
+        if (!hasToken && !hasEmailAndCode) {
+            throw new IllegalArgumentException("Otorisasi reset password tidak valid. Harap sertakan token atau email beserta kode reset.");
         }
 
-        if (resetTokenEntity.getExpiryDate().isBefore(ZonedDateTime.now())) {
-            throw new IllegalArgumentException("Token reset password sudah kedaluwarsa.");
+        UserEntity user;
+        if (hasToken) {
+            // Mode A: Temporary UUID Reset Token
+            String hashedToken = hashToken(request.getToken().trim());
+            PasswordResetTokenEntity resetTokenEntity = passwordResetTokenRepository.findByTokenHash(hashedToken)
+                    .orElseThrow(() -> new IllegalArgumentException("Token tidak valid atau salah."));
+
+            if (resetTokenEntity.getIsUsed()) {
+                throw new IllegalArgumentException("Token sudah pernah digunakan.");
+            }
+
+            if (resetTokenEntity.getExpiryDate().isBefore(ZonedDateTime.now())) {
+                throw new IllegalArgumentException("Token reset password sudah kedaluwarsa.");
+            }
+
+            user = resetTokenEntity.getUser();
+            resetTokenEntity.setIsUsed(true);
+            passwordResetTokenRepository.save(resetTokenEntity);
+        } else {
+            // Mode B: Direct Email + 6-digit Reset Code
+            String email = request.getEmail().trim().toLowerCase();
+            user = userRepository.findByEmailAndDeletedAtIsNull(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Akun tidak ditemukan atau email salah."));
+
+            PasswordResetCodeEntity codeEntity = passwordResetCodeRepository
+                    .findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(user)
+                    .orElseThrow(() -> new IllegalArgumentException("Kode reset password tidak ditemukan atau sudah digunakan. Silakan minta kode baru."));
+
+            if (codeEntity.getExpiryDate().isBefore(ZonedDateTime.now())) {
+                codeEntity.setIsUsed(true);
+                passwordResetCodeRepository.save(codeEntity);
+                throw new IllegalArgumentException("Kode reset password sudah kedaluwarsa. Silakan minta kode baru.");
+            }
+
+            if (codeEntity.getAttempts() >= codeEntity.getMaxAttempts()) {
+                codeEntity.setIsUsed(true);
+                passwordResetCodeRepository.save(codeEntity);
+                throw new IllegalArgumentException("Batas percobaan telah habis. Silakan minta kode baru.");
+            }
+
+            String inputCodeHash = hashToken(request.getResetCode().trim());
+            if (!inputCodeHash.equals(codeEntity.getCodeHash())) {
+                int newAttempts = codeEntity.getAttempts() + 1;
+                codeEntity.setAttempts(newAttempts);
+                if (newAttempts >= codeEntity.getMaxAttempts()) {
+                    codeEntity.setIsUsed(true);
+                    passwordResetCodeRepository.save(codeEntity);
+                    throw new IllegalArgumentException("Kode reset password salah. Batas percobaan telah habis. Silakan minta kode baru.");
+                }
+                passwordResetCodeRepository.save(codeEntity);
+                int remainingAttempts = codeEntity.getMaxAttempts() - newAttempts;
+                throw new IllegalArgumentException("Kode reset password salah. Sisa percobaan: " + remainingAttempts);
+            }
+
+            // Kode Cocok: tandai sudah digunakan
+            codeEntity.setIsUsed(true);
+            passwordResetCodeRepository.save(codeEntity);
+
+            // Invalidate any active reset tokens for this user
+            invalidatePreviousResetTokens(user);
         }
 
-        UserEntity user = resetTokenEntity.getUser();
         user.setPassword_hash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        resetTokenEntity.setIsUsed(true);
-        passwordResetTokenRepository.save(resetTokenEntity);
+        log.info("Password successfully reset for user: {}", user.getEmail());
     }
 
     @Override

@@ -10,6 +10,8 @@ export interface OrderItemRequest {
 
 export interface OrderRequest {
   items: OrderItemRequest[];
+  paymentMethod?: string;
+  paymentProofUrl?: string;
 }
 
 export interface OrderItemResponse {
@@ -25,6 +27,8 @@ export interface OrderResponse {
   userId: string;
   status: string;
   totalAmount: number;
+  paymentMethod?: string;
+  paymentProofUrl?: string;
   createdAt: string;
   items: OrderItemResponse[];
 }

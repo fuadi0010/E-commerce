@@ -345,6 +345,192 @@ class AuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("resetPassword: Mode B (Email + Kode) valid -> Berhasil reset password dan tandai kode digunakan")
+    void resetPassword_ModeB_Success() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("user@example.com")
+                .resetCode("123456")
+                .newPassword("PasswordBaru123!")
+                .confirmPassword("PasswordBaru123!")
+                .build();
+
+        String codeHash = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+        PasswordResetCodeEntity codeEntity = PasswordResetCodeEntity.builder()
+                .user(mockUser)
+                .codeHash(codeHash)
+                .expiryDate(ZonedDateTime.now().plusMinutes(15))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull("user@example.com")).thenReturn(Optional.of(mockUser));
+        when(passwordResetCodeRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(mockUser))
+                .thenReturn(Optional.of(codeEntity));
+        when(passwordEncoder.encode("PasswordBaru123!")).thenReturn("hashedPasswordNew");
+
+        assertDoesNotThrow(() -> authService.resetPassword(request));
+
+        assertTrue(codeEntity.getIsUsed(), "Kode reset harus ditandai sudah digunakan");
+        assertEquals("hashedPasswordNew", mockUser.getPassword_hash(), "Password hash user harus diperbarui");
+        verify(userRepository, times(1)).save(mockUser);
+        verify(passwordResetCodeRepository, times(1)).save(codeEntity);
+    }
+
+    @Test
+    @DisplayName("resetPassword: Mode B email tidak terdaftar -> Throws IllegalArgumentException")
+    void resetPassword_ModeB_UserNotFound() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("notfound@example.com")
+                .resetCode("123456")
+                .newPassword("PasswordBaru123!")
+                .confirmPassword("PasswordBaru123!")
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull("notfound@example.com")).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword(request));
+
+        assertTrue(ex.getMessage().contains("Akun tidak ditemukan atau email salah."));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("resetPassword: Mode B kode reset tidak ditemukan -> Throws IllegalArgumentException")
+    void resetPassword_ModeB_CodeNotFound() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("user@example.com")
+                .resetCode("123456")
+                .newPassword("PasswordBaru123!")
+                .confirmPassword("PasswordBaru123!")
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull("user@example.com")).thenReturn(Optional.of(mockUser));
+        when(passwordResetCodeRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(mockUser))
+                .thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword(request));
+
+        assertTrue(ex.getMessage().contains("Kode reset password tidak ditemukan atau sudah digunakan"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("resetPassword: Mode B kode kedaluwarsa -> Throws IllegalArgumentException")
+    void resetPassword_ModeB_CodeExpired() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("user@example.com")
+                .resetCode("123456")
+                .newPassword("PasswordBaru123!")
+                .confirmPassword("PasswordBaru123!")
+                .build();
+
+        PasswordResetCodeEntity expiredCode = PasswordResetCodeEntity.builder()
+                .user(mockUser)
+                .codeHash("dummyHash")
+                .expiryDate(ZonedDateTime.now().minusMinutes(5))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull("user@example.com")).thenReturn(Optional.of(mockUser));
+        when(passwordResetCodeRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(mockUser))
+                .thenReturn(Optional.of(expiredCode));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword(request));
+
+        assertTrue(ex.getMessage().contains("kedaluwarsa"));
+        assertTrue(expiredCode.getIsUsed());
+        verify(passwordResetCodeRepository, times(1)).save(expiredCode);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("resetPassword: Mode B batas percobaan habis -> Throws IllegalArgumentException")
+    void resetPassword_ModeB_MaxAttemptsExceeded() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("user@example.com")
+                .resetCode("123456")
+                .newPassword("PasswordBaru123!")
+                .confirmPassword("PasswordBaru123!")
+                .build();
+
+        PasswordResetCodeEntity exhaustedCode = PasswordResetCodeEntity.builder()
+                .user(mockUser)
+                .codeHash("dummyHash")
+                .expiryDate(ZonedDateTime.now().plusMinutes(10))
+                .attempts(5)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull("user@example.com")).thenReturn(Optional.of(mockUser));
+        when(passwordResetCodeRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(mockUser))
+                .thenReturn(Optional.of(exhaustedCode));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword(request));
+
+        assertTrue(ex.getMessage().contains("Batas percobaan telah habis"));
+        assertTrue(exhaustedCode.getIsUsed());
+        verify(passwordResetCodeRepository, times(1)).save(exhaustedCode);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("resetPassword: Mode B kode salah -> Menambah attempts dan throws IllegalArgumentException")
+    void resetPassword_ModeB_IncorrectCode() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .email("user@example.com")
+                .resetCode("000000")
+                .newPassword("PasswordBaru123!")
+                .confirmPassword("PasswordBaru123!")
+                .build();
+
+        String correctHash = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+        PasswordResetCodeEntity codeEntity = PasswordResetCodeEntity.builder()
+                .user(mockUser)
+                .codeHash(correctHash)
+                .expiryDate(ZonedDateTime.now().plusMinutes(10))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull("user@example.com")).thenReturn(Optional.of(mockUser));
+        when(passwordResetCodeRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(mockUser))
+                .thenReturn(Optional.of(codeEntity));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword(request));
+
+        assertTrue(ex.getMessage().contains("Kode reset password salah"));
+        assertEquals(1, codeEntity.getAttempts());
+        assertFalse(codeEntity.getIsUsed());
+        verify(passwordResetCodeRepository, times(1)).save(codeEntity);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("resetPassword: Tanpa token dan tanpa email/kode -> Throws IllegalArgumentException")
+    void resetPassword_NoCredentials_ThrowsIllegalArgumentException() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .newPassword("PasswordBaru123!")
+                .confirmPassword("PasswordBaru123!")
+                .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword(request));
+
+        assertTrue(ex.getMessage().contains("Otorisasi reset password tidak valid"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("register: Email terdaftar tapi belum verifikasi OTP -> Update data dan kirim OTP baru")
     void register_ExistingUnverifiedUser_UpdatesAndSendsNewOtp() {
         UserEntity unverifiedUser = new UserEntity();
