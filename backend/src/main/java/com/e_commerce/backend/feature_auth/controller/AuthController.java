@@ -64,7 +64,14 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody com.e_commerce.backend.feature_auth.dto.request.ForgotPasswordRequest request) {
         authService.forgotPassword(request.getEmail());
         // Always return success message to prevent user enumeration
-        return ResponseEntity.ok(ApiResponse.success(null, "Jika email terdaftar, instruksi reset password telah dikirimkan."));
+        return ResponseEntity.ok(ApiResponse.success(null, "Jika email terdaftar, kode reset password telah dikirimkan ke email Anda."));
+    }
+
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<ApiResponse<com.e_commerce.backend.feature_auth.dto.response.VerifyResetCodeResponse>> verifyResetCode(
+            @Valid @RequestBody com.e_commerce.backend.feature_auth.dto.request.VerifyResetCodeRequest request) {
+        com.e_commerce.backend.feature_auth.dto.response.VerifyResetCodeResponse response = authService.verifyResetCode(request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Kode verifikasi berhasil divalidasi."));
     }
 
     @PostMapping("/reset-password")
@@ -73,3 +80,4 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(null, "Password berhasil di-reset. Silakan login menggunakan password baru."));
     }
 }
+

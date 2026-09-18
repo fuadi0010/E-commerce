@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 
@@ -38,7 +38,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
           </a>
           <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Lupa Kata Sandi</h1>
           <p class="text-xs sm:text-sm text-slate-500">
-            Masukkan alamat email yang terdaftar untuk menerima tautan pemulihan kata sandi.
+            Masukkan alamat email yang terdaftar untuk menerima kode verifikasi pemulihan 6 digit.
           </p>
         </div>
 
@@ -65,7 +65,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>{{ isLoading ? 'Mengirimkan Tautan...' : 'Kirim Tautan Pemulihan' }}</span>
+                <span>{{ isLoading ? 'Mengirimkan Kode...' : 'Kirim Kode Reset Sandi' }}</span>
               </button>
             </div>
 
@@ -86,6 +86,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 export class ForgotPasswordComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
+  private router = inject(Router);
   private toastService = inject(ToastService);
 
   forgotForm = this.fb.group({
@@ -104,19 +105,24 @@ export class ForgotPasswordComponent {
       return;
     }
 
+    const targetEmail = this.forgotForm.value.email!.trim();
     this.isLoading = true;
-    this.authService.forgotPassword(this.forgotForm.value.email!).subscribe({
-      next: () => {
-        this.toastService.success('Email Terkirim', 'Tautan untuk mereset password telah dikirim ke email Anda.');
-        this.forgotForm.reset();
-        this.submitted = false;
-      },
-      error: () => {
+
+    this.authService.forgotPassword(targetEmail).subscribe({
+      next: (res) => {
         this.isLoading = false;
+        this.toastService.success(
+          'Kode Terkirim',
+          res?.message || 'Kode reset kata sandi 6 digit telah dikirimkan ke email Anda.'
+        );
+        this.router.navigate(['/verify-reset-code'], { queryParams: { email: targetEmail } });
       },
-      complete: () => {
+      error: (err) => {
         this.isLoading = false;
+        const msg = err?.error?.message || err?.message || 'Gagal mengirimkan kode reset password.';
+        this.toastService.error('Gagal Mengirim Kode', msg);
       }
     });
   }
 }
+

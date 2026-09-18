@@ -14,13 +14,23 @@ public interface EmailService {
     boolean sendEmail(String to, String subject, String text, String category);
 
     /**
-     * Helper to send password reset instruction email.
+     * Helper to send password reset instruction email (Deprecated: Use sendPasswordResetOtpEmail instead).
      *
      * @param to Target user email address
      * @param resetLink The full password reset URL with token
      * @return true if sending succeeded, false otherwise
      */
     boolean sendPasswordResetEmail(String to, String resetLink);
+
+    /**
+     * Helper to send 6-digit password reset code (OTP) verification email.
+     *
+     * @param to Target user email address
+     * @param resetCode 6-digit numeric reset code
+     * @param expirationMinutes Minutes before reset code expires
+     * @return true if sending succeeded, false otherwise
+     */
+    boolean sendPasswordResetOtpEmail(String to, String resetCode, int expirationMinutes);
 
     /**
      * Helper to send account registration OTP verification email.
@@ -33,3 +43,4 @@ public interface EmailService {
      */
     boolean sendRegistrationOtpEmail(String to, String fullName, String otp, int expirationMinutes);
 }
+

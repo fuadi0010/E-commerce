@@ -15,3 +15,15 @@ export interface ResetPasswordRequest {
   confirmPassword: string;
 }
 
+export interface VerifyResetCodeRequest {
+  email: string;
+  code: string;
+}
+
+export interface VerifyResetCodeResponse {
+  resetToken: string;
+  email: string;
+  message?: string;
+}
+
+

@@ -95,8 +95,11 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
               </button>
             </div>
 
-            <div *ngIf="!token" class="mt-2 text-center text-xs font-bold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
-              Token reset sandi tidak ditemukan atau sudah kedaluwarsa.
+            <div *ngIf="!token" class="mt-2 text-center text-xs font-bold text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200 space-y-1.5">
+              <p>Sesi reset sandi tidak ditemukan atau sudah kedaluwarsa.</p>
+              <a routerLink="/forgot-password" class="inline-block text-indigo-600 underline hover:text-indigo-800 transition-colors">
+                Minta Kode Reset Baru &rarr;
+              </a>
             </div>
 
             <div class="text-center pt-2">
@@ -139,10 +142,11 @@ export class ResetPasswordComponent implements OnInit {
     this.route.queryParams.subscribe(params => {
       this.token = params['token'];
       if (!this.token) {
-        this.toastService.error('Error', 'Token reset password tidak valid atau tidak ditemukan.');
+        this.toastService.error('Sesi Tidak Valid', 'Sesi reset password tidak ditemukan. Silakan verifikasi kode terlebih dahulu.');
       }
     });
   }
+
 
   onSubmit() {
     this.submitted = true;

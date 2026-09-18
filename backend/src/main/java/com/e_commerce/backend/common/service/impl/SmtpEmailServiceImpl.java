@@ -23,6 +23,12 @@ public class SmtpEmailServiceImpl implements EmailService {
     @Value("${spring.mail.properties.mail.smtp.from:}")
     private String smtpFromEmail;
 
+    @Value("${app.mail.from:}")
+    private String appMailFrom;
+
+    @Value("${MAIL_FROM:}")
+    private String envMailFrom;
+
     @Value("${app.mail.from-name:E-Commerce App}")
     private String fromName;
 
@@ -37,12 +43,21 @@ public class SmtpEmailServiceImpl implements EmailService {
             return false;
         }
 
-        String sender = (smtpFromEmail != null && !smtpFromEmail.isBlank())
-                ? smtpFromEmail.trim()
-                : (mailUsername != null ? mailUsername.trim() : "");
+        String sender;
+        if (smtpFromEmail != null && !smtpFromEmail.isBlank()) {
+            sender = smtpFromEmail.trim();
+        } else if (appMailFrom != null && !appMailFrom.isBlank()) {
+            sender = appMailFrom.trim();
+        } else if (envMailFrom != null && !envMailFrom.isBlank()) {
+            sender = envMailFrom.trim();
+        } else if (mailUsername != null && !mailUsername.isBlank()) {
+            sender = mailUsername.trim();
+        } else {
+            sender = "";
+        }
 
         if (sender.isBlank()) {
-            log.error("No sender email configured (spring.mail.username or spring.mail.properties.mail.smtp.from). Cannot deliver email to {}", to);
+            log.error("No sender email configured (spring.mail.username, spring.mail.properties.mail.smtp.from, or app.mail.from). Cannot deliver email to {}", to);
             return false;
         }
 
@@ -79,6 +94,19 @@ public class SmtpEmailServiceImpl implements EmailService {
         String content = "Silakan klik link berikut untuk melakukan reset password Anda:\n\n"
                 + resetLink + "\n\nLink ini akan kedaluwarsa dalam 30 menit.";
         return sendEmail(to, subject, content, "Password Reset");
+    }
+
+    @Override
+    public boolean sendPasswordResetOtpEmail(String to, String resetCode, int expirationMinutes) {
+        String subject = "Kode Reset Password - E-Commerce App";
+        String content = "Halo,\n\n"
+                + "Kami menerima permintaan untuk mereset password akun Anda.\n\n"
+                + "Kode reset password Anda adalah:\n\n"
+                + resetCode + "\n\n"
+                + "Kode ini berlaku selama " + expirationMinutes + " menit.\n\n"
+                + "Jangan berikan kode ini kepada siapa pun demi keamanan akun Anda.\n\n"
+                + "Jika Anda tidak meminta kode ini, silakan abaikan email ini dan password Anda akan tetap aman.";
+        return sendEmail(to, subject, content, "Password Reset OTP");
     }
 
     @Override

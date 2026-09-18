@@ -4,6 +4,8 @@ import { RegisterComponent } from './features/auth/pages/register/register.compo
 import { ForgotPasswordComponent } from './features/auth/pages/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './features/auth/pages/reset-password/reset-password.component';
 import { VerifyOtpComponent } from './features/auth/pages/verify-otp/verify-otp.component';
+import { VerifyResetCodeComponent } from './features/auth/pages/verify-reset-code/verify-reset-code.component';
+
 import { DashboardLayoutComponent } from './shared/components/layout/dashboard-layout.component';
 import { DashboardComponent } from './features/dashboard/pages/dashboard/dashboard.component';
 import { ProfileComponent } from './features/profile/pages/profile/profile.component';
@@ -55,7 +57,9 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'verify-otp', component: VerifyOtpComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
+  { path: 'verify-reset-code', component: VerifyResetCodeComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
+
 
   // Protected Routes (Nested under Layout) — Rule 45
   {

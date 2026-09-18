@@ -85,6 +85,8 @@ class SmtpEmailServiceImplTest {
     void sendEmail_NoSenderConfigured_ReturnsFalse() {
         ReflectionTestUtils.setField(emailService, "mailUsername", "");
         ReflectionTestUtils.setField(emailService, "smtpFromEmail", "");
+        ReflectionTestUtils.setField(emailService, "appMailFrom", "");
+        ReflectionTestUtils.setField(emailService, "envMailFrom", "");
 
         boolean result = emailService.sendEmail(
                 "buyer@example.com",
@@ -96,6 +98,50 @@ class SmtpEmailServiceImplTest {
         assertFalse(result);
         verify(mailSender, never()).createMimeMessage();
         verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    @Test
+    @DisplayName("sendEmail: When smtpFromEmail is empty but appMailFrom is present -> Uses appMailFrom and succeeds")
+    void sendEmail_FallbackToAppMailFrom_Success() {
+        ReflectionTestUtils.setField(emailService, "mailUsername", "");
+        ReflectionTestUtils.setField(emailService, "smtpFromEmail", "");
+        ReflectionTestUtils.setField(emailService, "appMailFrom", "custom-sender@example.com");
+        ReflectionTestUtils.setField(emailService, "envMailFrom", "");
+
+        MimeMessage mimeMessage = createRealMimeMessage();
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        boolean result = emailService.sendEmail(
+                "buyer@example.com",
+                "Test Subject",
+                "Test Content",
+                "General"
+        );
+
+        assertTrue(result);
+        verify(mailSender, times(1)).send(any(MimeMessage.class));
+    }
+
+    @Test
+    @DisplayName("sendEmail: When smtpFromEmail and appMailFrom are empty but envMailFrom is present -> Uses envMailFrom and succeeds")
+    void sendEmail_FallbackToEnvMailFrom_Success() {
+        ReflectionTestUtils.setField(emailService, "mailUsername", "");
+        ReflectionTestUtils.setField(emailService, "smtpFromEmail", "");
+        ReflectionTestUtils.setField(emailService, "appMailFrom", "");
+        ReflectionTestUtils.setField(emailService, "envMailFrom", "env-sender@example.com");
+
+        MimeMessage mimeMessage = createRealMimeMessage();
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        boolean result = emailService.sendEmail(
+                "buyer@example.com",
+                "Test Subject",
+                "Test Content",
+                "General"
+        );
+
+        assertTrue(result);
+        verify(mailSender, times(1)).send(any(MimeMessage.class));
     }
 
     @Test
@@ -127,6 +173,18 @@ class SmtpEmailServiceImplTest {
     }
 
     @Test
+    @DisplayName("sendPasswordResetOtpEmail: Formats reset OTP message with expiration and successfully delivers")
+    void sendPasswordResetOtpEmail_Success() {
+        MimeMessage mimeMessage = createRealMimeMessage();
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        boolean result = emailService.sendPasswordResetOtpEmail("user@example.com", "849201", 15);
+
+        assertTrue(result);
+        verify(mailSender, times(1)).send(any(MimeMessage.class));
+    }
+
+    @Test
     @DisplayName("sendRegistrationOtpEmail: Formats OTP message with expiration and successfully delivers")
     void sendRegistrationOtpEmail_Success() {
         MimeMessage mimeMessage = createRealMimeMessage();
@@ -138,3 +196,4 @@ class SmtpEmailServiceImplTest {
         verify(mailSender, times(1)).send(any(MimeMessage.class));
     }
 }
+

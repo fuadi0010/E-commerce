@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { AuthResponse, ResetPasswordRequest } from '../models/auth.model';
+import { AuthResponse, ResetPasswordRequest, VerifyResetCodeRequest, VerifyResetCodeResponse } from '../models/auth.model';
 import { ApiResponse } from '../models/api-response.model';
 import { TokenService } from './token.service';
 import { Observable, tap, catchError, throwError } from 'rxjs';
@@ -58,6 +58,10 @@ export class AuthService {
     return this.http.post<ApiResponse<string>>(`${this.baseUrl}/forgot-password`, { email });
   }
 
+  verifyResetCode(data: VerifyResetCodeRequest): Observable<ApiResponse<VerifyResetCodeResponse>> {
+    return this.http.post<ApiResponse<VerifyResetCodeResponse>>(`${this.baseUrl}/verify-reset-code`, data);
+  }
+
   resetPassword(data: ResetPasswordRequest): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(`${this.baseUrl}/reset-password`, data);
   }
@@ -70,3 +74,4 @@ export class AuthService {
     return this.http.post<ApiResponse<void>>(`${this.baseUrl}/resend-otp`, data);
   }
 }
+

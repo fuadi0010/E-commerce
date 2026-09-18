@@ -18,12 +18,16 @@ import com.e_commerce.backend.feature_auth.dto.request.LoginRequest;
 import com.e_commerce.backend.feature_auth.dto.request.RegisterRequest;
 import com.e_commerce.backend.feature_auth.dto.request.ResetPasswordRequest;
 import com.e_commerce.backend.feature_auth.dto.request.VerifyOtpRequest;
+import com.e_commerce.backend.feature_auth.dto.request.VerifyResetCodeRequest;
 import com.e_commerce.backend.feature_auth.dto.request.ResendOtpRequest;
 import com.e_commerce.backend.feature_auth.dto.response.AuthResponse;
 import com.e_commerce.backend.feature_auth.dto.response.TokenRefreshResponse;
+import com.e_commerce.backend.feature_auth.dto.response.VerifyResetCodeResponse;
+import com.e_commerce.backend.feature_auth.model.PasswordResetCodeEntity;
 import com.e_commerce.backend.feature_auth.model.PasswordResetTokenEntity;
 import com.e_commerce.backend.feature_auth.model.RefreshTokenEntity;
 import com.e_commerce.backend.feature_auth.model.RegistrationOtpEntity;
+import com.e_commerce.backend.feature_auth.repository.PasswordResetCodeRepository;
 import com.e_commerce.backend.feature_auth.repository.PasswordResetTokenRepository;
 import com.e_commerce.backend.feature_auth.repository.RefreshTokenRepository;
 import com.e_commerce.backend.feature_auth.repository.RegistrationOtpRepository;
@@ -58,11 +62,13 @@ public class AuthServiceImpl implements AuthService {
     private final UserProfileRepository userProfileRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordResetCodeRepository passwordResetCodeRepository;
     private final RegistrationOtpRepository registrationOtpRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
     private final EmailService emailService;
+
 
     @Value("${app.otp.expiration-minutes:5}")
     private int otpExpirationMinutes = 5;
@@ -244,28 +250,95 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void forgotPassword(String email) {
         userRepository.findByEmailAndDeletedAtIsNull(email).ifPresent(user -> {
-            String token = UUID.randomUUID().toString();
-            String hashedToken = hashToken(token);
+            invalidatePreviousResetCodes(user);
 
-            PasswordResetTokenEntity resetTokenEntity = PasswordResetTokenEntity.builder()
+            String rawCode = generateOtp();
+            String codeHash = hashToken(rawCode);
+
+            PasswordResetCodeEntity resetCodeEntity = PasswordResetCodeEntity.builder()
                     .user(user)
-                    .tokenHash(hashedToken)
-                    .expiryDate(ZonedDateTime.now().plusNanos(RESET_TOKEN_DURATION_MS * 1000000))
+                    .codeHash(codeHash)
+                    .expiryDate(ZonedDateTime.now().plusMinutes(15))
+                    .attempts(0)
+                    .maxAttempts(5)
                     .isUsed(false)
                     .build();
-            passwordResetTokenRepository.save(resetTokenEntity);
+            passwordResetCodeRepository.save(resetCodeEntity);
 
-            String resetLink = frontendBaseUrl + "/reset-password?token=" + token;
-            
-            boolean sent = emailService.sendPasswordResetEmail(user.getEmail(), resetLink);
+            boolean sent = emailService.sendPasswordResetOtpEmail(user.getEmail(), rawCode, 15);
             if (!sent) {
-                log.error("Failed to deliver password reset email to {}", user.getEmail());
-                throw new IllegalStateException("Gagal mengirimkan email reset password. Silakan periksa konfigurasi email atau coba beberapa saat lagi.");
+                log.error("Failed to deliver password reset OTP email to {}", user.getEmail());
+                throw new IllegalStateException("Gagal mengirimkan kode reset password. Silakan periksa konfigurasi email atau coba beberapa saat lagi.");
             }
-            log.info("Password reset email successfully sent to {}", user.getEmail());
+            log.info("Password reset OTP email successfully sent to {}", user.getEmail());
         });
         // Kita tidak throw exception bila user tidak ditemukan, demi mencegah enumeration.
     }
+
+    @Override
+    @Transactional
+    public VerifyResetCodeResponse verifyResetCode(VerifyResetCodeRequest request) {
+        UserEntity user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Akun tidak ditemukan atau email salah."));
+
+        PasswordResetCodeEntity codeEntity = passwordResetCodeRepository
+                .findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(user)
+                .orElseThrow(() -> new IllegalArgumentException("Kode reset password tidak ditemukan atau sudah digunakan. Silakan minta kode baru."));
+
+        if (codeEntity.getExpiryDate().isBefore(ZonedDateTime.now())) {
+            codeEntity.setIsUsed(true);
+            passwordResetCodeRepository.save(codeEntity);
+            throw new IllegalArgumentException("Kode reset password sudah kedaluwarsa. Silakan minta kode baru.");
+        }
+
+        if (codeEntity.getAttempts() >= codeEntity.getMaxAttempts()) {
+            codeEntity.setIsUsed(true);
+            passwordResetCodeRepository.save(codeEntity);
+            throw new IllegalArgumentException("Batas percobaan telah habis. Silakan minta kode baru.");
+        }
+
+        String inputCodeHash = hashToken(request.getCode());
+        if (!inputCodeHash.equals(codeEntity.getCodeHash())) {
+            int newAttempts = codeEntity.getAttempts() + 1;
+            codeEntity.setAttempts(newAttempts);
+            if (newAttempts >= codeEntity.getMaxAttempts()) {
+                codeEntity.setIsUsed(true);
+                passwordResetCodeRepository.save(codeEntity);
+                throw new IllegalArgumentException("Kode reset password salah. Batas percobaan telah habis. Silakan minta kode baru.");
+            }
+            passwordResetCodeRepository.save(codeEntity);
+            int remainingAttempts = codeEntity.getMaxAttempts() - newAttempts;
+            throw new IllegalArgumentException("Kode reset password salah. Sisa percobaan: " + remainingAttempts);
+        }
+
+        // OTP Cocok
+        codeEntity.setIsUsed(true);
+        passwordResetCodeRepository.save(codeEntity);
+
+        // Invalidate previous unused reset tokens for this user
+        invalidatePreviousResetTokens(user);
+
+        // Issue temporary UUID authorization token
+        String rawResetToken = UUID.randomUUID().toString();
+        String hashedToken = hashToken(rawResetToken);
+
+        PasswordResetTokenEntity resetTokenEntity = PasswordResetTokenEntity.builder()
+                .user(user)
+                .tokenHash(hashedToken)
+                .expiryDate(ZonedDateTime.now().plusNanos(RESET_TOKEN_DURATION_MS * 1000000))
+                .isUsed(false)
+                .build();
+        passwordResetTokenRepository.save(resetTokenEntity);
+
+        log.info("Password reset code successfully verified for user {}", user.getEmail());
+
+        return VerifyResetCodeResponse.builder()
+                .resetToken(rawResetToken)
+                .email(user.getEmail())
+                .message("Kode verifikasi berhasil divalidasi.")
+                .build();
+    }
+
 
     @Override
     @Transactional
@@ -401,6 +474,27 @@ public class AuthServiceImpl implements AuthService {
             registrationOtpRepository.saveAll(activeOtps);
         }
     }
+
+    private void invalidatePreviousResetCodes(UserEntity user) {
+        List<PasswordResetCodeEntity> activeCodes = passwordResetCodeRepository.findAllByUserAndIsUsedFalse(user);
+        for (PasswordResetCodeEntity code : activeCodes) {
+            code.setIsUsed(true);
+        }
+        if (!activeCodes.isEmpty()) {
+            passwordResetCodeRepository.saveAll(activeCodes);
+        }
+    }
+
+    private void invalidatePreviousResetTokens(UserEntity user) {
+        List<PasswordResetTokenEntity> activeTokens = passwordResetTokenRepository.findAllByUserAndIsUsedFalse(user);
+        for (PasswordResetTokenEntity token : activeTokens) {
+            token.setIsUsed(true);
+        }
+        if (!activeTokens.isEmpty()) {
+            passwordResetTokenRepository.saveAll(activeTokens);
+        }
+    }
+
 
     private String generateOtp() {
         return String.format("%06d", secureRandom.nextInt(1000000));

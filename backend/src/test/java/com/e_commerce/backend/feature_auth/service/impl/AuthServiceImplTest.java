@@ -4,11 +4,15 @@ import com.e_commerce.backend.feature_auth.dto.request.LoginRequest;
 import com.e_commerce.backend.feature_auth.dto.request.RegisterRequest;
 import com.e_commerce.backend.feature_auth.dto.request.ResetPasswordRequest;
 import com.e_commerce.backend.feature_auth.dto.request.VerifyOtpRequest;
+import com.e_commerce.backend.feature_auth.dto.request.VerifyResetCodeRequest;
 import com.e_commerce.backend.feature_auth.dto.request.ResendOtpRequest;
 import com.e_commerce.backend.feature_auth.dto.response.AuthResponse;
+import com.e_commerce.backend.feature_auth.dto.response.VerifyResetCodeResponse;
+import com.e_commerce.backend.feature_auth.model.PasswordResetCodeEntity;
 import com.e_commerce.backend.feature_auth.model.PasswordResetTokenEntity;
 import com.e_commerce.backend.feature_auth.model.RefreshTokenEntity;
 import com.e_commerce.backend.feature_auth.model.RegistrationOtpEntity;
+import com.e_commerce.backend.feature_auth.repository.PasswordResetCodeRepository;
 import com.e_commerce.backend.feature_auth.repository.PasswordResetTokenRepository;
 import com.e_commerce.backend.feature_auth.repository.RefreshTokenRepository;
 import com.e_commerce.backend.feature_auth.repository.RegistrationOtpRepository;
@@ -52,11 +56,13 @@ class AuthServiceImplTest {
     @Mock private UserProfileRepository userProfileRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock private PasswordResetCodeRepository passwordResetCodeRepository;
     @Mock private RegistrationOtpRepository registrationOtpRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private JwtUtils jwtUtils;
     @Mock private EmailService emailService;
+
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -199,15 +205,15 @@ class AuthServiceImplTest {
     }
 
     @Test
-    @DisplayName("forgotPassword: User ditemukan -> Menyimpan token dan memanggil emailService")
+    @DisplayName("forgotPassword: User ditemukan -> Menyimpan kode OTP dan memanggil emailService")
     void forgotPassword_UserFound_SendsEmail() {
         when(userRepository.findByEmailAndDeletedAtIsNull("user@example.com")).thenReturn(Optional.of(mockUser));
-        when(emailService.sendPasswordResetEmail(eq("user@example.com"), anyString())).thenReturn(true);
+        when(emailService.sendPasswordResetOtpEmail(eq("user@example.com"), anyString(), eq(15))).thenReturn(true);
 
         assertDoesNotThrow(() -> authService.forgotPassword("user@example.com"));
 
-        verify(passwordResetTokenRepository, times(1)).save(any());
-        verify(emailService, times(1)).sendPasswordResetEmail(eq("user@example.com"), contains("http://localhost:4200/reset-password?token="));
+        verify(passwordResetCodeRepository, times(1)).save(any());
+        verify(emailService, times(1)).sendPasswordResetOtpEmail(eq("user@example.com"), anyString(), eq(15));
     }
 
     @Test
@@ -217,9 +223,10 @@ class AuthServiceImplTest {
 
         assertDoesNotThrow(() -> authService.forgotPassword("unknown@example.com"));
 
-        verify(passwordResetTokenRepository, never()).save(any());
-        verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
+        verify(passwordResetCodeRepository, never()).save(any());
+        verify(emailService, never()).sendPasswordResetOtpEmail(anyString(), anyString(), anyInt());
     }
+
 
     @Test
     @DisplayName("Admin password verification: Hash V6 cocok dengan Admin1234!")
@@ -660,9 +667,97 @@ class AuthServiceImplTest {
     @DisplayName("forgotPassword: User ditemukan tapi pengiriman email gagal -> Throws IllegalStateException")
     void forgotPassword_EmailDeliveryFailure_ThrowsIllegalStateException() {
         when(userRepository.findByEmailAndDeletedAtIsNull(mockUser.getEmail())).thenReturn(Optional.of(mockUser));
-        when(emailService.sendPasswordResetEmail(eq(mockUser.getEmail()), anyString())).thenReturn(false);
+        when(emailService.sendPasswordResetOtpEmail(eq(mockUser.getEmail()), anyString(), eq(15))).thenReturn(false);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> authService.forgotPassword(mockUser.getEmail()));
-        assertTrue(ex.getMessage().contains("Gagal mengirimkan email reset password"));
+        assertTrue(ex.getMessage().contains("Gagal mengirimkan kode reset password"));
+    }
+
+    @Test
+    @DisplayName("verifyResetCode: Kode valid -> Menandai kode used, membuat token reset, dan mengembalikan resetToken")
+    void verifyResetCode_Success() {
+        VerifyResetCodeRequest request = new VerifyResetCodeRequest("user@example.com", "123456");
+        
+        // SHA-256 for "123456"
+        String validHash = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+        PasswordResetCodeEntity codeEntity = PasswordResetCodeEntity.builder()
+                .id(UUID.randomUUID())
+                .user(mockUser)
+                .codeHash(validHash)
+                .expiryDate(ZonedDateTime.now().plusMinutes(10))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(mockUser));
+        when(passwordResetCodeRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(mockUser))
+                .thenReturn(Optional.of(codeEntity));
+
+        VerifyResetCodeResponse response = authService.verifyResetCode(request);
+
+        assertNotNull(response);
+        assertNotNull(response.getResetToken());
+        assertEquals("user@example.com", response.getEmail());
+        assertTrue(codeEntity.getIsUsed());
+        verify(passwordResetCodeRepository, times(1)).save(codeEntity);
+        verify(passwordResetTokenRepository, times(1)).save(any());
+    }
+
+    @Test
+    @DisplayName("verifyResetCode: User tidak ditemukan -> Throws IllegalArgumentException")
+    void verifyResetCode_UserNotFound() {
+        VerifyResetCodeRequest request = new VerifyResetCodeRequest("unknown@example.com", "123456");
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyResetCode(request));
+        assertTrue(ex.getMessage().contains("Akun tidak ditemukan atau email salah"));
+    }
+
+    @Test
+    @DisplayName("verifyResetCode: Kode sudah kedaluwarsa -> Throws IllegalArgumentException")
+    void verifyResetCode_Expired() {
+        VerifyResetCodeRequest request = new VerifyResetCodeRequest("user@example.com", "123456");
+        PasswordResetCodeEntity expiredCode = PasswordResetCodeEntity.builder()
+                .user(mockUser)
+                .codeHash("dummyHash")
+                .expiryDate(ZonedDateTime.now().minusMinutes(1))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(mockUser));
+        when(passwordResetCodeRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(mockUser))
+                .thenReturn(Optional.of(expiredCode));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyResetCode(request));
+        assertTrue(ex.getMessage().contains("kedaluwarsa"));
+        assertTrue(expiredCode.getIsUsed());
+    }
+
+    @Test
+    @DisplayName("verifyResetCode: Kode salah -> Menambah attempts dan throws IllegalArgumentException")
+    void verifyResetCode_IncorrectCode() {
+        VerifyResetCodeRequest request = new VerifyResetCodeRequest("user@example.com", "000000");
+        String correctHash = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+        PasswordResetCodeEntity codeEntity = PasswordResetCodeEntity.builder()
+                .user(mockUser)
+                .codeHash(correctHash)
+                .expiryDate(ZonedDateTime.now().plusMinutes(10))
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .build();
+
+        when(userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())).thenReturn(Optional.of(mockUser));
+        when(passwordResetCodeRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(mockUser))
+                .thenReturn(Optional.of(codeEntity));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyResetCode(request));
+        assertTrue(ex.getMessage().contains("Kode reset password salah"));
+        assertEquals(1, codeEntity.getAttempts());
+        assertFalse(codeEntity.getIsUsed());
     }
 }
+
