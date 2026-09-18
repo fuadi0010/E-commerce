@@ -28,6 +28,22 @@ public class MidtransSnapRequest {
     @JsonProperty("item_details")
     private List<ItemDetails> itemDetails;
 
+    @JsonProperty("callbacks")
+    private Callbacks callbacks;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Callbacks {
+        @JsonProperty("finish")
+        private String finish;
+
+        @JsonProperty("error")
+        private String error;
+    }
+
     @Data
     @Builder
     @NoArgsConstructor

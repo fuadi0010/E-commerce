@@ -477,5 +477,40 @@ class PaymentServiceImplTest {
         verify(orderRepository, never()).findById(any());
         verify(orderService, never()).updateOrderStatus(any(), any());
     }
+
+    @Test
+    @DisplayName("handleNotification: Settlement untuk order yang sudah CANCELLED tidak membangkitkan status order ke PAID")
+    void handleNotification_SettlementForCancelledOrder_DoesNotResurrectOrder() throws Exception {
+        order.setStatus(OrderStatus.CANCELLED);
+
+        String serverKey = "SB-Mid-server-testkey123";
+        when(midtransProperties.getServerKey()).thenReturn(serverKey);
+
+        String orderIdStr = orderId.toString();
+        String signature = calculateSignature(orderIdStr, "200", "300000.00", serverKey);
+
+        com.e_commerce.backend.feature_payment.dto.MidtransNotificationPayload payload =
+                com.e_commerce.backend.feature_payment.dto.MidtransNotificationPayload.builder()
+                        .orderId(orderIdStr)
+                        .statusCode("200")
+                        .grossAmount("300000.00")
+                        .signatureKey(signature)
+                        .transactionStatus("settlement")
+                        .paymentType("qris")
+                        .transactionId("trx-late-cancelled-123")
+                        .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(paymentRepository.findByTransactionId("trx-late-cancelled-123")).thenReturn(Optional.empty());
+        when(paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.empty());
+
+        paymentService.handleNotification(payload);
+
+        // Record pembayaran tetap disimpan ke database untuk rekonsiliasi/audit
+        verify(paymentRepository, times(1)).save(any(PaymentEntity.class));
+        // Status order TIDAK pernah diubah/dibangkitkan ke PAID
+        verify(orderService, never()).updateOrderStatus(any(), any());
+        assertEquals(OrderStatus.CANCELLED, order.getStatus());
+    }
 }
 

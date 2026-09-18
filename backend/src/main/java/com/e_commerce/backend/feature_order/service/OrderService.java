@@ -24,4 +24,10 @@ public interface OrderService {
 
     /** FINDING-003: Update payment proof URL for an order */
     OrderEntity updatePaymentProof(UUID orderId, UUID userId, String paymentProofUrl);
+
+    /** ORDER-PAYMENT-FIX-001: Batalkan pesanan oleh customer sebelum pembayaran (hanya untuk PENDING) */
+    OrderEntity cancelOrder(UUID orderId, UUID userId);
+
+    /** ORDER-PAYMENT-FIX-001: Ubah metode pembayaran pada pesanan berstatus PENDING */
+    OrderEntity updatePaymentMethod(UUID orderId, UUID userId, String paymentMethod);
 }

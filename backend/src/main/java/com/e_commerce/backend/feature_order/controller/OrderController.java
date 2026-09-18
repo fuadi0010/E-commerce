@@ -137,4 +137,36 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Bukti pembayaran berhasil diperbarui",
                 orderMapper.toResponse(order)));
     }
+
+    // POST /api/orders/{id}/cancel — Customer (own) or Admin (ORDER-PAYMENT-FIX-001)
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        OrderEntity order = orderService.cancelOrder(id, isAdmin ? null : userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Pesanan berhasil dibatalkan",
+                orderMapper.toResponse(order)));
+    }
+
+    // PATCH /api/orders/{id}/payment-method — Customer (own) or Admin (ORDER-PAYMENT-FIX-001)
+    @PatchMapping("/{id}/payment-method")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<OrderResponse>> updatePaymentMethod(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestBody java.util.Map<String, String> body) {
+
+        String paymentMethod = body != null ? body.get("paymentMethod") : null;
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        OrderEntity order = orderService.updatePaymentMethod(id, isAdmin ? null : userDetails.getId(), paymentMethod);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Metode pembayaran berhasil diubah",
+                orderMapper.toResponse(order)));
+    }
 }

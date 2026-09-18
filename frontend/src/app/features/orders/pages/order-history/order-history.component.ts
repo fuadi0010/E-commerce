@@ -168,6 +168,24 @@ import { UploadService } from '../../../../core/services/upload.service';
                   </svg>
                   <span>{{ payingOrderId === order.id ? 'Memproses...' : 'Bayar Sekarang' }}</span>
                 </button>
+                <button *ngIf="order.status === 'PENDING'"
+                  (click)="openChangePaymentModal(order, $event)"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all btn-press shadow-xs"
+                  title="Ganti metode pembayaran">
+                  <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                  </svg>
+                  <span>Ubah Metode</span>
+                </button>
+                <button *ngIf="order.status === 'PENDING'"
+                  (click)="openCancelModal(order, $event)"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 rounded-xl text-xs font-semibold transition-all btn-press shadow-xs"
+                  title="Batalkan pesanan sebelum dibayar">
+                  <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                  <span>Batalkan</span>
+                </button>
                 <button (click)="openDetailModal(order)"
                   class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all btn-press shadow-xs">
                   <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -383,6 +401,22 @@ import { UploadService } from '../../../../core/services/upload.service';
             </div>
           </div>
 
+          <!-- QRIS Information & Instruction Box (ORDER-PAYMENT-FIX-001) -->
+          <div *ngIf="selectedOrder.status === 'PENDING' && (selectedOrder.paymentMethod === 'QRIS' || !selectedOrder.paymentMethod)" 
+            class="p-4 bg-indigo-50/70 border border-indigo-200/80 rounded-2xl text-xs space-y-2">
+            <div class="flex items-center gap-2 text-indigo-950 font-bold">
+              <span class="text-base">📱</span>
+              <span>Metode Pembayaran QRIS (Midtrans Snap)</span>
+            </div>
+            <p class="text-xs text-indigo-700 leading-relaxed">
+              Klik <strong>"Bayar Sekarang"</strong> untuk memunculkan QR Code di jendela pop-up Midtrans Snap.
+            </p>
+            <div class="text-[11px] text-slate-600 bg-white/90 p-2.5 rounded-xl border border-indigo-100 flex items-start gap-2">
+              <span class="text-indigo-600 font-bold shrink-0">💡 Unduh / Simpan QR:</span>
+              <span>Pada jendela pembayaran Midtrans Snap, klik kanan pada gambar QR Code lalu pilih <strong>"Simpan gambar sebagai..."</strong> atau <strong>"Copy image address"</strong> untuk menyimpan QR code ke perangkat Anda.</span>
+            </div>
+          </div>
+
           <!-- Price Summary Breakdown -->
           <div class="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/70 space-y-2 text-xs">
             <div class="flex items-center justify-between text-slate-600">
@@ -401,10 +435,112 @@ import { UploadService } from '../../../../core/services/upload.service';
         </div>
 
         <!-- Modal Footer -->
-        <div class="pt-4 border-t border-slate-100 flex items-center justify-end shrink-0">
-          <button (click)="closeDetailModal()"
-            class="px-5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors btn-press">
-            Tutup
+        <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div class="flex items-center gap-2" *ngIf="selectedOrder.status === 'PENDING'">
+            <button type="button" (click)="openCancelModal(selectedOrder)"
+              class="px-3.5 py-2 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors border border-rose-200 btn-press">
+              Batalkan Pesanan
+            </button>
+            <button type="button" (click)="openChangePaymentModal(selectedOrder)"
+              class="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors border border-slate-200 btn-press">
+              Ubah Metode Bayar
+            </button>
+          </div>
+          <div class="flex items-center gap-2 ml-auto">
+            <button *ngIf="selectedOrder.status === 'PENDING'" type="button" (click)="payNow(selectedOrder)" [disabled]="payingOrderId === selectedOrder.id"
+              class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all btn-press disabled:opacity-50">
+              {{ payingOrderId === selectedOrder.id ? 'Memproses...' : 'Bayar Sekarang' }}
+            </button>
+            <button (click)="closeDetailModal()"
+              class="px-5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors btn-press">
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel Order Confirmation Modal (ORDER-PAYMENT-FIX-001) -->
+    <div *ngIf="orderToCancel" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-lg shrink-0">
+            ⚠️
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Batalkan Pesanan</h3>
+            <p class="text-xs text-slate-400 font-mono">#{{ orderToCancel.id }}</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-600 leading-relaxed bg-rose-50/50 p-3.5 rounded-2xl border border-rose-100">
+          Apakah Anda yakin ingin membatalkan pesanan ini? Pembatalan tidak dapat diurungkan dan kuantitas stok produk akan otomatis dikembalikan ke inventaris toko.
+        </p>
+
+        <div class="pt-2 flex items-center justify-end gap-2.5">
+          <button type="button" (click)="closeCancelModal()" [disabled]="isCancelling"
+            class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+            Batal
+          </button>
+          <button type="button" (click)="confirmCancelOrder()" [disabled]="isCancelling"
+            class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm transition-all disabled:opacity-50 btn-press">
+            <span *ngIf="!isCancelling">Ya, Batalkan Pesanan</span>
+            <span *ngIf="isCancelling">Membatalkan...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Change Payment Method Modal (ORDER-PAYMENT-FIX-001) -->
+    <div *ngIf="orderToChangePayment" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
+              💳
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Ubah Metode Pembayaran</h3>
+              <p class="text-xs text-slate-400 font-mono">#{{ orderToChangePayment.id.substring(0, 8) }}...</p>
+            </div>
+          </div>
+          <button (click)="closeChangePaymentModal()" class="w-8 h-8 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors">
+            ✕
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <label class="block text-xs font-bold text-slate-700">Pilih Metode Pembayaran Baru:</label>
+          <div class="space-y-2">
+            <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all"
+              [ngClass]="selectedNewPaymentMethod === 'QRIS' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 font-bold' : 'border-slate-200 hover:bg-slate-50 text-slate-700'">
+              <input type="radio" name="changeMethod" value="QRIS" [(ngModel)]="selectedNewPaymentMethod" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+              <div class="text-xs">
+                <span class="font-bold block">QRIS / Instant Payment (Midtrans Snap)</span>
+                <span class="text-slate-500 text-[11px]">Scan QRIS menggunakan GoPay, ShopeePay, DANA, atau mobile banking.</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all"
+              [ngClass]="selectedNewPaymentMethod === 'VA' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 font-bold' : 'border-slate-200 hover:bg-slate-50 text-slate-700'">
+              <input type="radio" name="changeMethod" value="VA" [(ngModel)]="selectedNewPaymentMethod" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+              <div class="text-xs">
+                <span class="font-bold block">Transfer Virtual Account (BCA / BNI / BRI / Mandiri)</span>
+                <span class="text-slate-500 text-[11px]">Nomor VA unik akan disediakan saat membuka jendela pembayaran.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-100">
+          <button type="button" (click)="closeChangePaymentModal()" [disabled]="isUpdatingPaymentMethod"
+            class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+            Batal
+          </button>
+          <button type="button" (click)="confirmChangePaymentMethod()" [disabled]="isUpdatingPaymentMethod"
+            class="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-indigo-600 rounded-xl shadow-sm transition-all disabled:opacity-50 btn-press">
+            <span *ngIf="!isUpdatingPaymentMethod">Simpan & Lanjutkan Bayar</span>
+            <span *ngIf="isUpdatingPaymentMethod">Memperbarui...</span>
           </button>
         </div>
       </div>
@@ -423,6 +559,14 @@ export class OrderHistoryComponent implements OnInit {
 
   /** ID pesanan yang sedang diproses pembayarannya (untuk loading state tombol). */
   payingOrderId: string | null = null;
+
+  // ORDER-PAYMENT-FIX-001: Modal states
+  orderToCancel: OrderResponse | null = null;
+  isCancelling = false;
+
+  orderToChangePayment: OrderResponse | null = null;
+  selectedNewPaymentMethod = 'QRIS';
+  isUpdatingPaymentMethod = false;
 
   orders: OrderResponse[] = [];
   pageData: PageResponse<OrderResponse> | null = null;
@@ -524,6 +668,100 @@ export class OrderHistoryComponent implements OnInit {
 
   closeDetailModal(): void {
     this.selectedOrder = null;
+  }
+
+  // ORDER-PAYMENT-FIX-001: Cancel Order Handlers
+  openCancelModal(order: OrderResponse, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.orderToCancel = order;
+  }
+
+  closeCancelModal(): void {
+    if (this.isCancelling) return;
+    this.orderToCancel = null;
+  }
+
+  confirmCancelOrder(): void {
+    if (!this.orderToCancel) return;
+    this.isCancelling = true;
+    const orderId = this.orderToCancel.id;
+
+    this.orderService.cancelOrder(orderId).subscribe({
+      next: (res) => {
+        this.isCancelling = false;
+        this.toastService.success('Pesanan Dibatalkan', 'Pesanan berhasil dibatalkan dan stok produk telah dikembalikan.');
+        this.closeCancelModal();
+
+        // Update local state
+        if (res.data) {
+          const updated = res.data;
+          const idx = this.orders.findIndex(o => o.id === orderId);
+          if (idx !== -1) {
+            this.orders[idx] = updated;
+          }
+          if (this.selectedOrder && this.selectedOrder.id === orderId) {
+            this.selectedOrder = updated;
+          }
+        } else {
+          this.loadOrders();
+        }
+      },
+      error: (err) => {
+        this.isCancelling = false;
+        this.toastService.error('Gagal Membatalkan', err.error?.message || 'Pesanan tidak dapat dibatalkan.');
+      }
+    });
+  }
+
+  // ORDER-PAYMENT-FIX-001: Change Payment Method Handlers
+  openChangePaymentModal(order: OrderResponse, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.orderToChangePayment = order;
+    this.selectedNewPaymentMethod = order.paymentMethod || 'QRIS';
+  }
+
+  closeChangePaymentModal(): void {
+    if (this.isUpdatingPaymentMethod) return;
+    this.orderToChangePayment = null;
+  }
+
+  confirmChangePaymentMethod(): void {
+    if (!this.orderToChangePayment) return;
+    this.isUpdatingPaymentMethod = true;
+    const targetOrder = this.orderToChangePayment;
+    const orderId = targetOrder.id;
+    const newMethod = this.selectedNewPaymentMethod;
+
+    this.orderService.updatePaymentMethod(orderId, newMethod).subscribe({
+      next: (res) => {
+        this.isUpdatingPaymentMethod = false;
+        this.toastService.success('Metode Pembayaran Diperbarui', `Metode pembayaran berhasil diubah ke ${newMethod}.`);
+        this.closeChangePaymentModal();
+
+        if (res.data) {
+          const updated = res.data;
+          const idx = this.orders.findIndex(o => o.id === orderId);
+          if (idx !== -1) {
+            this.orders[idx] = updated;
+          }
+          if (this.selectedOrder && this.selectedOrder.id === orderId) {
+            this.selectedOrder = updated;
+          }
+          // Segera panggil bayar sekarang dengan Snap token baru
+          this.payNow(updated);
+        } else {
+          this.loadOrders();
+        }
+      },
+      error: (err) => {
+        this.isUpdatingPaymentMethod = false;
+        this.toastService.error('Gagal Mengubah Metode', err.error?.message || 'Tidak dapat memperbarui metode pembayaran.');
+      }
+    });
   }
 
   /**

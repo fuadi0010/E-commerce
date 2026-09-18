@@ -64,4 +64,12 @@ export class OrderService {
   updatePaymentProof(id: string, paymentProofUrl: string): Observable<ApiResponse<OrderResponse>> {
     return this.http.patch<ApiResponse<OrderResponse>>(`${this.apiUrl}/${id}/payment-proof`, { paymentProofUrl });
   }
+
+  cancelOrder(id: string): Observable<ApiResponse<OrderResponse>> {
+    return this.http.post<ApiResponse<OrderResponse>>(`${this.apiUrl}/${id}/cancel`, {});
+  }
+
+  updatePaymentMethod(id: string, paymentMethod: string): Observable<ApiResponse<OrderResponse>> {
+    return this.http.patch<ApiResponse<OrderResponse>>(`${this.apiUrl}/${id}/payment-method`, { paymentMethod });
+  }
 }

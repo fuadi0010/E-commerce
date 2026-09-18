@@ -32,6 +32,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import com.e_commerce.backend.feature_payment.model.PaymentEntity;
+import com.e_commerce.backend.feature_payment.model.PaymentStatus;
+import com.e_commerce.backend.feature_payment.repository.PaymentRepository;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -48,6 +52,7 @@ class OrderServiceImplTest {
     @Mock private OrderItemRepository orderItemRepository;
     @Mock private ProductRepository productRepository;
     @Mock private UserRepository userRepository;
+    @Mock private PaymentRepository paymentRepository;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -473,5 +478,176 @@ class OrderServiceImplTest {
                 () -> orderService.updatePaymentProof(orderId, differentUserId, "https://example.com/fraud_proof.pdf"));
 
         verify(orderRepository, never()).save(any());
+    }
+
+    // ===========================
+    // ORDER-PAYMENT-FIX-001: cancelOrder Tests
+    // ===========================
+    @Test
+    @DisplayName("cancelOrder: Berhasil membatalkan pesanan PENDING, mengembalikan stok, dan membatalkan pembayaran aktif")
+    void cancelOrder_Success_RestoresStockAndCancelsPayment() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PENDING);
+
+        OrderItemEntity item = new OrderItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setProduct(mockProduct);
+        item.setQuantity(3);
+        order.setItems(List.of(item));
+
+        mockProduct.setStock(7); // stok saat ini 7, harus dikembalikan jadi 10
+
+        PaymentEntity activePayment = PaymentEntity.builder()
+                .id(UUID.randomUUID())
+                .order(order)
+                .status(PaymentStatus.PENDING)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(productRepository.findByIdWithPessimisticLock(productId)).thenReturn(Optional.of(mockProduct));
+        when(paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(activePayment));
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        OrderEntity cancelledOrder = orderService.cancelOrder(orderId, mockUser.getId());
+
+        assertNotNull(cancelledOrder);
+        assertEquals(OrderStatus.CANCELLED, cancelledOrder.getStatus());
+        assertEquals(10, mockProduct.getStock());
+        assertEquals(PaymentStatus.CANCEL, activePayment.getStatus());
+
+        verify(productRepository, times(1)).save(mockProduct);
+        verify(paymentRepository, times(1)).save(activePayment);
+        verify(orderRepository, times(1)).save(order);
+    }
+
+    @Test
+    @DisplayName("cancelOrder: Admin dapat membatalkan pesanan tanpa IDOR check (userId = null)")
+    void cancelOrder_Admin_Success() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PENDING);
+        order.setItems(new ArrayList<>());
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.empty());
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        OrderEntity cancelledOrder = orderService.cancelOrder(orderId, null);
+
+        assertNotNull(cancelledOrder);
+        assertEquals(OrderStatus.CANCELLED, cancelledOrder.getStatus());
+        verify(orderRepository, times(1)).save(order);
+    }
+
+    @Test
+    @DisplayName("cancelOrder: User lain mencoba membatalkan pesanan (IDOR) -> Throws AccessDeniedException")
+    void cancelOrder_NotOwner_ThrowsAccessDeniedException() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PENDING);
+
+        UUID attackerId = UUID.randomUUID();
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        assertThrows(AccessDeniedException.class, () -> orderService.cancelOrder(orderId, attackerId));
+        verify(orderRepository, never()).save(any());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("cancelOrder: Pesanan bukan PENDING (misal: PAID) -> Throws IllegalStateException")
+    void cancelOrder_NotPending_ThrowsIllegalStateException() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PAID);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> orderService.cancelOrder(orderId, mockUser.getId()));
+        assertTrue(ex.getMessage().contains("Hanya pesanan dengan status PENDING"));
+        verify(orderRepository, never()).save(any());
+    }
+
+    // ===========================
+    // ORDER-PAYMENT-FIX-001: updatePaymentMethod Tests
+    // ===========================
+    @Test
+    @DisplayName("updatePaymentMethod: Berhasil mengubah metode pembayaran dan menganulir pending payment sebelumnya")
+    void updatePaymentMethod_Success() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PENDING);
+        order.setPaymentMethod("QRIS");
+
+        PaymentEntity oldPayment = PaymentEntity.builder()
+                .id(UUID.randomUUID())
+                .order(order)
+                .status(PaymentStatus.PENDING)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(oldPayment));
+        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        OrderEntity updated = orderService.updatePaymentMethod(orderId, mockUser.getId(), "VA");
+
+        assertNotNull(updated);
+        assertEquals("VA", updated.getPaymentMethod());
+        assertEquals(PaymentStatus.CANCEL, oldPayment.getStatus());
+        verify(paymentRepository, times(1)).save(oldPayment);
+        verify(orderRepository, times(1)).save(order);
+    }
+
+    @Test
+    @DisplayName("updatePaymentMethod: User lain mencoba mengubah metode (IDOR) -> Throws AccessDeniedException")
+    void updatePaymentMethod_NotOwner_ThrowsAccessDeniedException() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PENDING);
+
+        UUID intruderId = UUID.randomUUID();
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        assertThrows(AccessDeniedException.class,
+                () -> orderService.updatePaymentMethod(orderId, intruderId, "VA"));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePaymentMethod: Pesanan sudah dibayar (PAID) -> Throws IllegalStateException")
+    void updatePaymentMethod_NonPending_ThrowsIllegalStateException() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PAID);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        assertThrows(IllegalStateException.class,
+                () -> orderService.updatePaymentMethod(orderId, mockUser.getId(), "VA"));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updatePaymentMethod: Nilai kosong/blank -> Throws IllegalArgumentException")
+    void updatePaymentMethod_Blank_ThrowsIllegalArgumentException() {
+        UUID orderId = UUID.randomUUID();
+        assertThrows(IllegalArgumentException.class,
+                () -> orderService.updatePaymentMethod(orderId, mockUser.getId(), "   "));
     }
 }

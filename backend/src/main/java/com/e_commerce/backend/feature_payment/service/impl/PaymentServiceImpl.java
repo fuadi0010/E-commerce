@@ -48,6 +48,9 @@ public class PaymentServiceImpl implements PaymentService {
     private final MidtransProperties midtransProperties;
     private final PaymentMapper paymentMapper;
 
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrl = "http://localhost:4200";
+
     @Override
     @Transactional
     public PaymentResponse createOrGetPaymentForOrder(UUID orderId, UUID userId, boolean isAdmin) {
@@ -178,6 +181,10 @@ public class PaymentServiceImpl implements PaymentService {
                         .email(order.getUser().getEmail())
                         .build())
                 .itemDetails(itemDetails)
+                .callbacks(MidtransSnapRequest.Callbacks.builder()
+                        .finish(frontendUrl + "/orders")
+                        .error(frontendUrl + "/orders")
+                        .build())
                 .build();
 
         MidtransSnapResponse snapResponse = midtransClient.createSnapTransaction(snapRequest);
@@ -283,7 +290,9 @@ public class PaymentServiceImpl implements PaymentService {
 
         // Update Order Status secara idempoten
         if (newStatus.isSuccess()) {
-            if (order.getStatus() != OrderStatus.PAID && order.getStatus() != OrderStatus.COMPLETED) {
+            if (order.getStatus() == OrderStatus.CANCELLED) {
+                log.warn("LATE PAYMENT ALERT: Received settlement notification for CANCELLED order {}. Payment recorded in database for manual review/refund. Order status remains CANCELLED.", orderId);
+            } else if (order.getStatus() != OrderStatus.PAID && order.getStatus() != OrderStatus.COMPLETED) {
                 log.info("Payment SUCCESS for orderId={}. Updating order status to PAID.", orderId);
                 orderService.updateOrderStatus(orderId, OrderStatus.PAID);
                 if (order.getPaymentMethod() == null || order.getPaymentMethod().isBlank() || order.getPaymentMethod().equalsIgnoreCase("QRIS") || order.getPaymentMethod().equalsIgnoreCase("VA")) {

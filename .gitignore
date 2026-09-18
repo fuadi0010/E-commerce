@@ -23,12 +23,13 @@ id_ed25519*
 .npmrc
 
 # Spring Boot Configuration & Secrets
-**/application.properties
-**/application.yml
-**/application.yaml
+**/application-local.properties
+**/application-local.yml
+**/application-local.yaml
 **/application-*.properties
 **/application-*.yml
 **/application-*.yaml
+!**/application.properties
 !**/application.properties.example
 !**/application.yml.example
 !**/application.yaml.example

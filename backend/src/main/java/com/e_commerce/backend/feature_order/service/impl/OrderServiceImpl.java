@@ -14,6 +14,8 @@ import com.e_commerce.backend.feature_product.model.ProductEntity;
 import com.e_commerce.backend.feature_product.repository.ProductRepository;
 import com.e_commerce.backend.feature_user.model.UserEntity;
 import com.e_commerce.backend.feature_user.repository.UserRepository;
+import com.e_commerce.backend.feature_payment.model.PaymentStatus;
+import com.e_commerce.backend.feature_payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
@@ -41,6 +43,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
 
     @Override
     @Transactional
@@ -211,6 +214,72 @@ public class OrderServiceImpl implements OrderService {
 
         order.setPaymentProofUrl(paymentProofUrl);
         log.info("Updated payment proof URL for order {}: {}", orderId, paymentProofUrl);
+        return orderRepository.save(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderEntity cancelOrder(UUID orderId, UUID userId) {
+        OrderEntity order = getOrderById(orderId);
+
+        // IDOR check: hanya pemilik pesanan atau admin (userId == null) yang dapat membatalkan
+        if (userId != null && !order.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Anda tidak memiliki akses untuk membatalkan pesanan ini.");
+        }
+
+        // Validasi status: hanya pesanan berstatus PENDING yang dapat dibatalkan oleh customer
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("Hanya pesanan dengan status PENDING yang dapat dibatalkan. Status saat ini: " + order.getStatus());
+        }
+
+        // Kembalikan kuantitas stok produk
+        restoreStockForOrder(order);
+
+        // Tandai payment attempt aktif sebagai CANCEL
+        paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId).ifPresent(p -> {
+            if (p.getStatus() == PaymentStatus.PENDING) {
+                p.setStatus(PaymentStatus.CANCEL);
+                paymentRepository.save(p);
+                log.info("Cancelled pending payment transaction {} for cancelled order {}", p.getId(), orderId);
+            }
+        });
+
+        order.setStatus(OrderStatus.CANCELLED);
+        log.info("Order {} successfully cancelled by user {}", orderId, userId);
+        return orderRepository.save(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderEntity updatePaymentMethod(UUID orderId, UUID userId, String paymentMethod) {
+        if (paymentMethod == null || paymentMethod.isBlank()) {
+            throw new IllegalArgumentException("Metode pembayaran tidak boleh kosong");
+        }
+
+        OrderEntity order = getOrderById(orderId);
+
+        // IDOR check: hanya pemilik pesanan atau admin yang dapat mengubah metode bayar
+        if (userId != null && !order.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Anda tidak memiliki akses untuk mengubah pesanan ini.");
+        }
+
+        // Validasi status: hanya boleh diubah saat pesanan masih PENDING
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("Metode pembayaran hanya dapat diubah saat pesanan berstatus PENDING. Status saat ini: " + order.getStatus());
+        }
+
+        order.setPaymentMethod(paymentMethod.trim().toUpperCase());
+
+        // Batalkan payment attempt sebelumnya agar request bayar berikutnya membuat token Snap baru yang bersih
+        paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId).ifPresent(p -> {
+            if (p.getStatus() == PaymentStatus.PENDING) {
+                p.setStatus(PaymentStatus.CANCEL);
+                paymentRepository.save(p);
+                log.info("Invalidated previous pending payment {} due to payment method change to {}", p.getId(), paymentMethod);
+            }
+        });
+
+        log.info("Updated payment method for order {} to {}", orderId, paymentMethod);
         return orderRepository.save(order);
     }
 }
