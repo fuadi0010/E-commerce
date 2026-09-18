@@ -512,5 +512,84 @@ class PaymentServiceImplTest {
         verify(orderService, never()).updateOrderStatus(any(), any());
         assertEquals(OrderStatus.CANCELLED, order.getStatus());
     }
+
+    @Test
+    @DisplayName("syncPaymentStatus: Berhasil menyinkronkan status settlement dari Midtrans dan mengubah order ke PAID")
+    void syncPaymentStatus_Success_UpdatesOrderToPaid() {
+        PaymentEntity payment = PaymentEntity.builder()
+                .id(UUID.randomUUID())
+                .order(order)
+                .snapToken("snap-123")
+                .grossAmount(BigDecimal.valueOf(300000))
+                .currency("IDR")
+                .status(PaymentStatus.PENDING)
+                .paymentDetails(orderId.toString())
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(payment));
+
+        com.e_commerce.backend.feature_payment.dto.MidtransNotificationPayload statusPayload =
+                com.e_commerce.backend.feature_payment.dto.MidtransNotificationPayload.builder()
+                        .orderId(orderId.toString())
+                        .statusCode("200")
+                        .grossAmount("300000.00")
+                        .transactionStatus("settlement")
+                        .paymentType("qris")
+                        .transactionId("trx-sync-123")
+                        .build();
+
+        when(midtransClient.getTransactionStatus(orderId.toString())).thenReturn(statusPayload);
+
+        OrderEntity paidOrder = OrderEntity.builder()
+                .id(orderId)
+                .user(user)
+                .status(OrderStatus.PAID)
+                .totalAmount(BigDecimal.valueOf(300000))
+                .build();
+        when(orderService.updateOrderStatus(orderId, OrderStatus.PAID)).thenReturn(paidOrder);
+
+        PaymentResponse response = paymentService.syncPaymentStatus(orderId, userId, false);
+
+        assertNotNull(response);
+        assertEquals(PaymentStatus.SETTLEMENT, response.getStatus());
+        assertEquals("trx-sync-123", response.getTransactionId());
+        assertEquals("qris", response.getPaymentType());
+        verify(orderService, times(1)).updateOrderStatus(orderId, OrderStatus.PAID);
+        verify(paymentRepository, times(1)).save(payment);
+    }
+
+    @Test
+    @DisplayName("syncPaymentStatus: Order yang sudah PAID tidak memanggil Midtrans API ulang")
+    void syncPaymentStatus_AlreadyPaid_SkipsMidtransCall() {
+        order.setStatus(OrderStatus.PAID);
+        PaymentEntity payment = PaymentEntity.builder()
+                .id(UUID.randomUUID())
+                .order(order)
+                .status(PaymentStatus.SETTLEMENT)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(payment));
+
+        PaymentResponse response = paymentService.syncPaymentStatus(orderId, userId, false);
+
+        assertNotNull(response);
+        assertEquals(PaymentStatus.SETTLEMENT, response.getStatus());
+        verify(midtransClient, never()).getTransactionStatus(any());
+        verify(orderService, never()).updateOrderStatus(any(), any());
+    }
+
+    @Test
+    @DisplayName("syncPaymentStatus: IDOR - User lain tidak dapat menyinkronkan order")
+    void syncPaymentStatus_IDOR_ThrowsResourceNotFoundException() {
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        UUID otherUserId = UUID.randomUUID();
+        assertThrows(ResourceNotFoundException.class, () ->
+                paymentService.syncPaymentStatus(orderId, otherUserId, false));
+
+        verify(midtransClient, never()).getTransactionStatus(any());
+    }
 }
 

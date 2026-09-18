@@ -135,6 +135,38 @@ Aplikasi menggunakan sistem manajemen secret terpusat melalui file `.env`.
 | `OTP_EXPIRATION_MINUTES` | Durasi berlaku kode OTP registrasi (menit) | Opsional | `5` |
 | `OTP_MAX_ATTEMPTS` | Maksimal percobaan OTP salah | Opsional | `5` |
 | `OTP_RESEND_COOLDOWN_SECONDS` | Cooldown kirim ulang OTP (detik) | Opsional | `60` |
+| `MIDTRANS_SERVER_KEY` | Server Key Midtrans Sandbox / Production | **Ya (Sensitif)** | `Mid-server-...` |
+| `MIDTRANS_CLIENT_KEY` | Client Key Midtrans untuk frontend Snap.js | Ya (Publik) | `Mid-client-...` |
+| `MIDTRANS_MERCHANT_ID` | Merchant ID dari Midtrans Dashboard | Opsional | `G123456789` |
+| `MIDTRANS_IS_PRODUCTION` | Flag mode Production (`false` = Sandbox) | Opsional | `false` |
+| `MIDTRANS_SNAP_URL` | URL script Snap.js Midtrans | Opsional | `https://app.sandbox.midtrans.com/snap/snap.js` |
+| `MIDTRANS_API_URL` | URL API Core Midtrans | Opsional | `https://api.sandbox.midtrans.com` |
+
+---
+
+## 💳 Integrasi Midtrans Payment Gateway & Webhook
+
+Aplikasi e-commerce ini mengimplementasikan pembayaran online otomatis melalui **Midtrans Snap Sandbox/Production** dengan pola **Dual Confirmation (Active Sync + Passive Webhook)**:
+
+### 1. Pola Dual Confirmation
+* **Sinkronisasi Aktif (Active Sync - Zero Configuration di Localhost):**
+  Ketika customer berhasil menyelesaikan pembayaran di popup Snap atau kembali melalui tombol *"Back to Merchant"*, frontend secara otomatis memicu pemanggilan endpoint `POST /api/orders/{id}/payment/sync`. Backend langsung melakukan request aman ke Midtrans Core API (`GET /v2/{order_id}/status`) menggunakan Server Key. Status pesanan seketika berubah menjadi `PAID` tanpa bergantung pada webhook publik atau delay jaringan.
+* **Webhook Pasif (Passive Notification):**
+  Endpoint publik `POST /api/payments/midtrans/notification` mendengarkan notifikasi asynchronous real-time dari Midtrans Cloud. Setiap payload divalidasi secara kriptografis menggunakan algoritma hashing **SHA-512** (`order_id + status_code + gross_amount + ServerKey`) untuk menjamin integritas dan keaslian request.
+
+### 2. Panduan Setup Webhook (Ngrok / Domain Publik)
+Jika ingin mengaktifkan webhook pasif Midtrans di lingkungan development lokal:
+1. Jalankan reverse proxy / tunnel ke port backend (8080):
+   ```bash
+   ngrok http 8080
+   ```
+2. Salin URL publik HTTPS yang diberikan oleh ngrok (misal: `https://abc-123.ngrok-free.app`).
+3. Masuk ke **[Midtrans Sandbox Dashboard](https://dashboard.sandbox.midtrans.com)** &rarr; **Settings** &rarr; **Configuration**.
+4. Isi kolom konfigurasi berikut:
+   * **Payment Notification URL**: `https://<domain-ngrok-anda>/api/payments/midtrans/notification`
+   * **Finish Redirect URL**: `http://localhost:4200/orders`
+   * **Unfinished / Error Redirect URL**: `http://localhost:4200/orders`
+5. Simpan pengaturan. Notifikasi status pembayaran otomatis dikirimkan ke backend lokal setiap kali transaksi berubah.
 
 ---
 

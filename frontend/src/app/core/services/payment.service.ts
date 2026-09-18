@@ -69,6 +69,18 @@ export class PaymentService {
     );
   }
 
+  /**
+   * Menyinkronkan status pembayaran order secara aktif dengan Midtrans Core API.
+   *
+   * @param orderId UUID order
+   */
+  syncPayment(orderId: string): Observable<ApiResponse<PaymentResponse>> {
+    return this.http.post<ApiResponse<PaymentResponse>>(
+      `${this.apiUrl}/orders/${orderId}/payment/sync`,
+      {}
+    );
+  }
+
   // ─────────────────────────────────────────────
   // Snap.js Dynamic Script Loader
   // ─────────────────────────────────────────────

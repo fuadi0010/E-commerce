@@ -114,7 +114,7 @@ import { UploadService } from '../../../../core/services/upload.service';
                 </span>
                 <span [class]="getStatusBadgeClass(order.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border">
                   <span class="w-1.5 h-1.5 rounded-full mr-1.5" [class]="getStatusDotClass(order.status)"></span>
-                  {{ order.status }}
+                  {{ getStatusLabel(order.status) }}
                 </span>
               </div>
             </div>
@@ -238,8 +238,9 @@ import { UploadService } from '../../../../core/services/upload.service';
           <div>
             <div class="flex items-center gap-2">
               <h3 class="text-base font-bold text-slate-900">Rincian Lengkap Pesanan</h3>
-              <span [class]="getStatusBadgeClass(selectedOrder.status)" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border">
-                {{ selectedOrder.status }}
+              <span [class]="getStatusBadgeClass(selectedOrder.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border">
+                <span class="w-1.5 h-1.5 rounded-full mr-1.5" [class]="getStatusDotClass(selectedOrder.status)"></span>
+                {{ getStatusLabel(selectedOrder.status) }}
               </span>
             </div>
             <p class="text-xs text-slate-400 font-mono mt-0.5">ID: {{ selectedOrder.id }}</p>
@@ -590,11 +591,27 @@ export class OrderHistoryComponent implements OnInit {
   ngOnInit(): void {
     this.loadOrders();
 
-    // Check if deep linked via query param ?id=...
+    // Check if deep linked via query param ?id=... or Midtrans return URL ?order_id=...
     this.route.queryParams.subscribe(params => {
       const orderId = params['id'];
       if (orderId) {
         this.fetchOrderById(orderId);
+      }
+
+      const midtransOrderId = params['order_id'];
+      if (midtransOrderId) {
+        const cleanOrderId = midtransOrderId.length > 36 && midtransOrderId.charAt(36) === '-'
+          ? midtransOrderId.substring(0, 36)
+          : midtransOrderId;
+        this.paymentService.syncPayment(cleanOrderId).subscribe({
+          next: () => {
+            this.toastService.success('Pembayaran Berhasil', 'Status pesanan berhasil diperbarui menjadi PAID.');
+            this.loadOrders();
+          },
+          error: () => {
+            this.loadOrders();
+          }
+        });
       }
     });
   }
@@ -670,10 +687,14 @@ export class OrderHistoryComponent implements OnInit {
     this.selectedOrder = null;
   }
 
-  // ORDER-PAYMENT-FIX-001: Cancel Order Handlers
+  // ORDER-PAYMENT-FIX-001 & FIX-CANCEL-001: Cancel Order Handlers
   openCancelModal(order: OrderResponse, event?: Event): void {
     if (event) {
       event.stopPropagation();
+    }
+    if (order.status !== 'PENDING') {
+      this.toastService.warning('Tidak Dapat Dibatalkan', 'Pesanan yang sudah dibayar tidak dapat dibatalkan.');
+      return;
     }
     this.orderToCancel = order;
   }
@@ -685,6 +706,11 @@ export class OrderHistoryComponent implements OnInit {
 
   confirmCancelOrder(): void {
     if (!this.orderToCancel) return;
+    if (this.orderToCancel.status !== 'PENDING') {
+      this.toastService.error('Gagal Membatalkan', 'Pesanan yang sudah dibayar tidak dapat dibatalkan.');
+      this.closeCancelModal();
+      return;
+    }
     this.isCancelling = true;
     const orderId = this.orderToCancel.id;
 
@@ -719,6 +745,10 @@ export class OrderHistoryComponent implements OnInit {
   openChangePaymentModal(order: OrderResponse, event?: Event): void {
     if (event) {
       event.stopPropagation();
+    }
+    if (order.status !== 'PENDING') {
+      this.toastService.warning('Tidak Dapat Diubah', 'Metode pembayaran hanya dapat diubah untuk pesanan yang belum dibayar.');
+      return;
     }
     this.orderToChangePayment = order;
     this.selectedNewPaymentMethod = order.paymentMethod || 'QRIS';
@@ -784,8 +814,17 @@ export class OrderHistoryComponent implements OnInit {
           await this.paymentService.initAndOpenSnap(snapToken, {
             onSuccess: () => {
               this.payingOrderId = null;
-              this.toastService.success('Pembayaran Berhasil', 'Transaksi Anda telah berhasil dikonfirmasi.');
-              this.loadOrders();
+              this.toastService.info('Memverifikasi', 'Menyinkronkan status pembayaran...');
+              this.paymentService.syncPayment(order.id).subscribe({
+                next: () => {
+                  this.toastService.success('Pembayaran Terkonfirmasi', 'Status pesanan berhasil diubah menjadi PAID.');
+                  this.loadOrders();
+                },
+                error: () => {
+                  this.toastService.success('Pembayaran Berhasil', 'Transaksi Anda telah selesai diproses.');
+                  this.loadOrders();
+                }
+              });
             },
             onPending: () => {
               this.payingOrderId = null;
@@ -814,13 +853,13 @@ export class OrderHistoryComponent implements OnInit {
   }
 
   getStatusBadgeClass(status: string): string {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'PENDING':
         return 'bg-amber-50 text-amber-700 border-amber-200/60';
       case 'PAID':
-        return 'bg-blue-50 text-blue-700 border-blue-200/60';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
       case 'SHIPPED':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200/60';
+        return 'bg-blue-50 text-blue-700 border-blue-200/60';
       case 'DELIVERED':
       case 'COMPLETED':
         return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
@@ -832,14 +871,26 @@ export class OrderHistoryComponent implements OnInit {
   }
 
   getStatusDotClass(status: string): string {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'PENDING': return 'bg-amber-500';
-      case 'PAID': return 'bg-blue-500';
-      case 'SHIPPED': return 'bg-indigo-500';
+      case 'PAID': return 'bg-emerald-500';
+      case 'SHIPPED': return 'bg-blue-500';
       case 'DELIVERED':
       case 'COMPLETED': return 'bg-emerald-500';
       case 'CANCELLED': return 'bg-rose-500';
       default: return 'bg-slate-400';
+    }
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status?.toUpperCase()) {
+      case 'PENDING': return 'Menunggu Pembayaran';
+      case 'PAID': return 'Dibayar';
+      case 'SHIPPED': return 'Dikirim';
+      case 'DELIVERED': return 'Diterima';
+      case 'COMPLETED': return 'Selesai';
+      case 'CANCELLED': return 'Dibatalkan';
+      default: return status || '';
     }
   }
 

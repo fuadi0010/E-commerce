@@ -200,11 +200,12 @@ public class PaymentServiceImpl implements PaymentService {
                 .currency("IDR")
                 .status(PaymentStatus.PENDING)
                 .expiryTime(ZonedDateTime.now(ZoneOffset.UTC).plusHours(24))
+                .paymentDetails(midtransOrderId)
                 .build();
 
         PaymentEntity saved = paymentRepository.save(newPayment);
-        log.info("Created new Midtrans payment transaction for orderId={}, paymentId={}, grossAmount={}",
-                orderId, saved.getId(), calculatedGrossAmount);
+        log.info("Created new Midtrans payment transaction for orderId={}, paymentId={}, grossAmount={}, midtransOrderId={}",
+                orderId, saved.getId(), calculatedGrossAmount, midtransOrderId);
         return paymentMapper.toResponse(saved);
     }
 
@@ -273,11 +274,76 @@ public class PaymentServiceImpl implements PaymentService {
                         .status(PaymentStatus.PENDING)
                         .build());
 
+        processPaymentStatusUpdate(order, payment, payload);
+    }
+
+    @Override
+    @Transactional
+    public PaymentResponse syncPaymentStatus(UUID orderId, UUID userId, boolean isAdmin) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pesanan tidak ditemukan"));
+
+        if (!isAdmin && !order.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("Pesanan tidak ditemukan");
+        }
+
+        PaymentEntity payment = paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Belum ada transaksi pembayaran untuk pesanan ini."));
+
+        // Jika order sudah PAID atau COMPLETED, langsung kembalikan status saat ini
+        if (order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.COMPLETED) {
+            log.debug("Order {} is already {}, skipping Midtrans sync", orderId, order.getStatus());
+            return paymentMapper.toResponse(payment);
+        }
+
+        // Tentukan ID yang dikirim ke Midtrans:
+        // Prioritas 1: transactionId jika ada
+        // Prioritas 2: paymentDetails jika berisi format midtransOrderId (cth: orderId atau orderId-timestamp)
+        // Prioritas 3: orderId.toString()
+        String queryId;
+        if (payment.getTransactionId() != null && !payment.getTransactionId().isBlank()) {
+            queryId = payment.getTransactionId();
+        } else if (payment.getPaymentDetails() != null && !payment.getPaymentDetails().isBlank()
+                && payment.getPaymentDetails().startsWith(order.getId().toString())) {
+            queryId = payment.getPaymentDetails();
+        } else {
+            queryId = order.getId().toString();
+        }
+
+        log.info("Syncing payment status with Midtrans for orderId={}, queryId={}", orderId, queryId);
+        MidtransNotificationPayload statusPayload = midtransClient.getTransactionStatus(queryId);
+
+        // Fallback: Jika dengan queryId gagal atau null, coba dengan orderId murni
+        if (statusPayload == null && !queryId.equals(order.getId().toString())) {
+            log.info("Retrying Midtrans sync with base orderId={}", orderId);
+            statusPayload = midtransClient.getTransactionStatus(order.getId().toString());
+        }
+
+        if (statusPayload != null && statusPayload.getTransactionStatus() != null) {
+            log.info("Midtrans returned status={} for orderId={}", statusPayload.getTransactionStatus(), orderId);
+            processPaymentStatusUpdate(order, payment, statusPayload);
+        } else {
+            log.warn("Midtrans returned empty/null status for orderId={}. Leaving status unchanged.", orderId);
+        }
+
+        return paymentMapper.toResponse(payment);
+    }
+
+    /**
+     * Memperbarui status pembayaran dan pesanan secara terpusat dan idempoten.
+     */
+    private void processPaymentStatusUpdate(OrderEntity order, PaymentEntity payment, MidtransNotificationPayload payload) {
         PaymentStatus newStatus = mapMidtransStatus(payload.getTransactionStatus(), payload.getFraudStatus());
 
-        payment.setTransactionId(payload.getTransactionId());
-        payment.setPaymentType(payload.getPaymentType());
-        payment.setFraudStatus(payload.getFraudStatus());
+        if (payload.getTransactionId() != null && !payload.getTransactionId().isBlank()) {
+            payment.setTransactionId(payload.getTransactionId());
+        }
+        if (payload.getPaymentType() != null && !payload.getPaymentType().isBlank()) {
+            payment.setPaymentType(payload.getPaymentType());
+        }
+        if (payload.getFraudStatus() != null && !payload.getFraudStatus().isBlank()) {
+            payment.setFraudStatus(payload.getFraudStatus());
+        }
         payment.setStatus(newStatus);
         payment.setPaymentDetails(payload.toString());
 
@@ -286,6 +352,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         paymentRepository.save(payment);
+        UUID orderId = order.getId();
         log.info("Updated payment record for orderId={} to status={}", orderId, newStatus);
 
         // Update Order Status secara idempoten
@@ -294,10 +361,13 @@ public class PaymentServiceImpl implements PaymentService {
                 log.warn("LATE PAYMENT ALERT: Received settlement notification for CANCELLED order {}. Payment recorded in database for manual review/refund. Order status remains CANCELLED.", orderId);
             } else if (order.getStatus() != OrderStatus.PAID && order.getStatus() != OrderStatus.COMPLETED) {
                 log.info("Payment SUCCESS for orderId={}. Updating order status to PAID.", orderId);
-                orderService.updateOrderStatus(orderId, OrderStatus.PAID);
-                if (order.getPaymentMethod() == null || order.getPaymentMethod().isBlank() || order.getPaymentMethod().equalsIgnoreCase("QRIS") || order.getPaymentMethod().equalsIgnoreCase("VA")) {
-                    order.setPaymentMethod("MIDTRANS_" + (payload.getPaymentType() != null ? payload.getPaymentType().toUpperCase() : "GATEWAY"));
-                    orderRepository.save(order);
+                OrderEntity updatedOrder = orderService.updateOrderStatus(orderId, OrderStatus.PAID);
+                OrderEntity targetOrder = (updatedOrder != null) ? updatedOrder : order;
+                targetOrder.setStatus(OrderStatus.PAID);
+                if (targetOrder.getPaymentMethod() == null || targetOrder.getPaymentMethod().isBlank()
+                        || targetOrder.getPaymentMethod().equalsIgnoreCase("QRIS") || targetOrder.getPaymentMethod().equalsIgnoreCase("VA")) {
+                    targetOrder.setPaymentMethod("MIDTRANS_" + (payload.getPaymentType() != null ? payload.getPaymentType().toUpperCase() : "GATEWAY"));
+                    orderRepository.save(targetOrder);
                 }
             }
         } else if (newStatus == PaymentStatus.CANCEL ||

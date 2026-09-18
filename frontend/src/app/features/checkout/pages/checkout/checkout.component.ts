@@ -571,8 +571,17 @@ export class CheckoutComponent implements OnInit {
           await this.paymentService.initAndOpenSnap(snapToken, {
             onSuccess: () => {
               this.cartService.clearCart();
-              this.toastService.success('Pembayaran Berhasil', 'Transaksi Anda telah berhasil dikonfirmasi.');
-              this.router.navigate(['/orders']);
+              this.toastService.info('Memverifikasi', 'Menyinkronkan status pembayaran...');
+              this.paymentService.syncPayment(order.id).subscribe({
+                next: () => {
+                  this.toastService.success('Pembayaran Terkonfirmasi', 'Transaksi Anda telah diverifikasi sebagai PAID.');
+                  this.router.navigate(['/orders']);
+                },
+                error: () => {
+                  this.toastService.success('Pembayaran Berhasil', 'Transaksi Anda telah selesai diproses.');
+                  this.router.navigate(['/orders']);
+                }
+              });
             },
             onPending: () => {
               this.cartService.clearCart();

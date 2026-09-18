@@ -722,4 +722,41 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).sumTotalAmountByStatusIn(anyCollection());
         verify(orderRepository, times(1)).countByStatus(OrderStatus.PENDING);
     }
+
+    @Test
+    @DisplayName("cancelOrder: Order dengan status PAID tidak dapat dibatalkan -> Throws IllegalStateException")
+    void cancelOrder_OrderStatusPaid_ThrowsIllegalStateException() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setUser(mockUser);
+        order.setStatus(OrderStatus.PAID);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> orderService.cancelOrder(orderId, mockUser.getId()));
+
+        assertTrue(ex.getMessage().contains("Pesanan yang sudah dibayar tidak dapat dibatalkan"));
+        verify(orderRepository, never()).save(any());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: Order PAID diubah menjadi CANCELLED -> Throws IllegalStateException")
+    void updateOrderStatus_PaidToCancelled_ThrowsIllegalStateException() {
+        UUID orderId = UUID.randomUUID();
+        OrderEntity order = new OrderEntity();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.PAID);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> orderService.updateOrderStatus(orderId, OrderStatus.CANCELLED));
+
+        assertTrue(ex.getMessage().contains("Pesanan yang sudah dibayar tidak dapat dibatalkan"));
+        verify(orderRepository, never()).save(any());
+        verify(productRepository, never()).save(any());
+    }
 }

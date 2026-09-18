@@ -41,5 +41,16 @@ public interface PaymentService {
      * @param payload DTO payload notifikasi dari Midtrans
      */
     void handleNotification(com.e_commerce.backend.feature_payment.dto.MidtransNotificationPayload payload);
+
+    /**
+     * Menyinkronkan status pembayaran order secara aktif dengan Midtrans Core API.
+     * Mengubah status pesanan menjadi PAID secara langsung jika pembayaran berhasil di Midtrans Sandbox/Production.
+     *
+     * @param orderId ID pesanan
+     * @param userId ID pengguna yang sedang login
+     * @param isAdmin flag apakah pengguna memiliki role ADMIN
+     * @return PaymentResponse detail status pembayaran terbaru
+     */
+    PaymentResponse syncPaymentStatus(UUID orderId, UUID userId, boolean isAdmin);
 }
 

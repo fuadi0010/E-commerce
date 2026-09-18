@@ -156,7 +156,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
               <td class="px-6 py-4 whitespace-nowrap">
                 <span [class]="getStatusBadgeClass(order.status)" class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border">
                   <span class="w-1.5 h-1.5 rounded-full mr-1.5" [class]="getStatusDotClass(order.status)"></span>
-                  {{ order.status }}
+                  {{ getStatusLabel(order.status) }}
                 </span>
               </td>
 
@@ -368,13 +368,13 @@ export class OrderListComponent implements OnInit {
   }
 
   getStatusBadgeClass(status: string): string {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'PENDING':
         return 'bg-amber-50 text-amber-700 border-amber-200/60';
       case 'PAID':
-        return 'bg-blue-50 text-blue-700 border-blue-200/60';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
       case 'SHIPPED':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200/60';
+        return 'bg-blue-50 text-blue-700 border-blue-200/60';
       case 'DELIVERED':
       case 'COMPLETED':
         return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
@@ -386,14 +386,26 @@ export class OrderListComponent implements OnInit {
   }
 
   getStatusDotClass(status: string): string {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'PENDING': return 'bg-amber-500';
-      case 'PAID': return 'bg-blue-500';
-      case 'SHIPPED': return 'bg-indigo-500';
+      case 'PAID': return 'bg-emerald-500';
+      case 'SHIPPED': return 'bg-blue-500';
       case 'DELIVERED':
       case 'COMPLETED': return 'bg-emerald-500';
       case 'CANCELLED': return 'bg-rose-500';
       default: return 'bg-slate-400';
+    }
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status?.toUpperCase()) {
+      case 'PENDING': return 'Menunggu Pembayaran';
+      case 'PAID': return 'Dibayar';
+      case 'SHIPPED': return 'Dikirim';
+      case 'DELIVERED': return 'Diterima';
+      case 'COMPLETED': return 'Selesai';
+      case 'CANCELLED': return 'Dibatalkan';
+      default: return status || '';
     }
   }
 

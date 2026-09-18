@@ -130,6 +130,11 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("Pesanan yang sudah dibatalkan tidak dapat diubah statusnya.");
         }
 
+        // FIX-CANCEL-001: Mencegah perubahan status dari pesanan yang sudah dibayar menjadi CANCELLED
+        if (newStatus == OrderStatus.CANCELLED && (oldStatus == OrderStatus.PAID || oldStatus == OrderStatus.COMPLETED || oldStatus == OrderStatus.SHIPPED || oldStatus == OrderStatus.DELIVERED)) {
+            throw new IllegalStateException("Pesanan yang sudah dibayar tidak dapat dibatalkan.");
+        }
+
         // FINDING-001: Jika pesanan dibatalkan (CANCELLED), kembalikan kuantitas stok ke produk
         if (newStatus == OrderStatus.CANCELLED) {
             restoreStockForOrder(order);
@@ -228,8 +233,14 @@ public class OrderServiceImpl implements OrderService {
             throw new AccessDeniedException("Anda tidak memiliki akses untuk membatalkan pesanan ini.");
         }
 
-        // Validasi status: hanya pesanan berstatus PENDING yang dapat dibatalkan oleh customer
+        // FIX-CANCEL-001: Hanya pesanan berstatus PENDING yang dapat dibatalkan; tolak pesanan yang sudah dibayar
         if (order.getStatus() != OrderStatus.PENDING) {
+            if (order.getStatus() == OrderStatus.PAID ||
+                order.getStatus() == OrderStatus.SHIPPED ||
+                order.getStatus() == OrderStatus.DELIVERED ||
+                order.getStatus() == OrderStatus.COMPLETED) {
+                throw new IllegalStateException("Hanya pesanan dengan status PENDING yang dapat dibatalkan. Pesanan yang sudah dibayar tidak dapat dibatalkan.");
+            }
             throw new IllegalStateException("Hanya pesanan dengan status PENDING yang dapat dibatalkan. Status saat ini: " + order.getStatus());
         }
 

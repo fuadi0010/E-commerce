@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.UUID;
 
 /**
@@ -21,6 +23,7 @@ import java.util.UUID;
  */
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -58,6 +61,22 @@ public class PaymentController {
     }
 
     /**
+     * Menyinkronkan status transaksi pembayaran dengan Midtrans Core API secara aktif.
+     */
+    @PostMapping("/api/orders/{id}/payment/sync")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<PaymentResponse>> syncOrderPayment(
+            @PathVariable("id") UUID orderId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        PaymentResponse response = paymentService.syncPaymentStatus(orderId, userDetails.getId(), isAdmin);
+        return ResponseEntity.ok(ApiResponse.success(response, "Status pembayaran Midtrans berhasil disinkronisasi"));
+    }
+
+    /**
      * Mengambil konfigurasi publik Midtrans (Client Key & Snap script URL).
      * Endpoint publik tanpa autentikasi, aman karena tidak mengandung Server Key.
      */
@@ -75,6 +94,11 @@ public class PaymentController {
     @PostMapping("/api/payments/midtrans/notification")
     public ResponseEntity<ApiResponse<java.util.Map<String, String>>> handleMidtransNotification(
             @org.springframework.web.bind.annotation.RequestBody com.e_commerce.backend.feature_payment.dto.MidtransNotificationPayload payload) {
+
+        log.info("Midtrans Webhook HTTP POST received: order_id={}, status={}, type={}",
+                payload != null ? payload.getOrderId() : null,
+                payload != null ? payload.getTransactionStatus() : null,
+                payload != null ? payload.getPaymentType() : null);
 
         paymentService.handleNotification(payload);
         return ResponseEntity.ok(ApiResponse.success(
