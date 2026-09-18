@@ -25,7 +25,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity, UUID> {
      * Rule 23: Whitelist field sorting yang diizinkan.
      * Key = nama property Java (yang dikirim frontend), Value = nama kolom database.
      */
-    Set<String> ALLOWED_SORT_FIELDS = Set.of("name", "price", "stock", "createdAt", "updatedAt");
+    Set<String> ALLOWED_SORT_FIELDS = Set.of("name", "price", "stock", "createdAt", "updatedAt", "isActive");
 
     /**
      * Mapping dari nama property Java ke nama kolom PostgreSQL.
@@ -36,7 +36,8 @@ public interface ProductRepository extends JpaRepository<ProductEntity, UUID> {
             "price", "price",
             "stock", "stock",
             "createdAt", "created_at",
-            "updatedAt", "updated_at"
+            "updatedAt", "updated_at",
+            "isActive", "is_active"
     );
 
     /**
@@ -47,17 +48,32 @@ public interface ProductRepository extends JpaRepository<ProductEntity, UUID> {
     Optional<ProductEntity> findById(UUID id);
 
     /**
-     * JPQL query dengan EntityGraph untuk eager-fetch category dalam satu query (mencegah N+1).
-     * Kompatibel penuh dengan Hibernate 6.5.3 (tidak melempar HibernateException).
-     * Filter soft-delete otomatis ditangani oleh @SQLRestriction("deleted_at IS NULL") pada ProductEntity.
+     * JPQL query publik untuk katalog pelanggan (hanya produk dengan isActive = true).
+     * Eager-fetch category dalam satu query (mencegah N+1).
      */
     @EntityGraph(attributePaths = {"category"})
     @Query("SELECT p FROM ProductEntity p WHERE " +
+           "p.isActive = true AND " +
            "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS text), '%'))) " +
            "AND (:categoryId IS NULL OR p.category.id = :categoryId)")
     Page<ProductEntity> findActiveProductsWithFilters(
             @Param("search") String search,
             @Param("categoryId") UUID categoryId,
+            Pageable pageable);
+
+    /**
+     * JPQL query untuk katalog admin (menampilkan semua produk: aktif maupun disembunyikan).
+     * Mendukung filter opsional isActive, pencarian teks, dan filter kategori.
+     */
+    @EntityGraph(attributePaths = {"category"})
+    @Query("SELECT p FROM ProductEntity p WHERE " +
+           "(:isActive IS NULL OR p.isActive = :isActive) AND " +
+           "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS text), '%'))) " +
+           "AND (:categoryId IS NULL OR p.category.id = :categoryId)")
+    Page<ProductEntity> findAllProductsForAdmin(
+            @Param("search") String search,
+            @Param("categoryId") UUID categoryId,
+            @Param("isActive") Boolean isActive,
             Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -70,7 +86,8 @@ public interface ProductRepository extends JpaRepository<ProductEntity, UUID> {
      */
     Map<String, String> COLUMN_TO_PROPERTY = Map.of(
             "created_at", "createdAt",
-            "updated_at", "updatedAt"
+            "updated_at", "updatedAt",
+            "is_active", "isActive"
     );
 
     /**

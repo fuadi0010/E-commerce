@@ -16,9 +16,15 @@ public interface ProductService {
     /** Rule 9: Partial update via PATCH */
     ProductEntity patchProduct(UUID id, PatchProductRequest request);
 
+    ProductEntity hideProduct(UUID id);
+
+    ProductEntity unhideProduct(UUID id);
+
     void softDeleteProduct(UUID id);
 
     ProductEntity getProductById(UUID id);
 
     Page<ProductEntity> getAllActiveProducts(String search, UUID categoryId, Pageable pageable);
+
+    Page<ProductEntity> getAllProductsForAdmin(String search, UUID categoryId, Boolean isActive, Pageable pageable);
 }

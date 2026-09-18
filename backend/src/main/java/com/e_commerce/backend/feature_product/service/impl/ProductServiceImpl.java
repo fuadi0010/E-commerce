@@ -94,10 +94,26 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public void softDeleteProduct(UUID productId) {
+    public ProductEntity hideProduct(UUID productId) {
         ProductEntity product = getProductById(productId);
+        product.setIsActive(false);
         product.setDeletedAt(ZonedDateTime.now());
-        productRepository.save(product);
+        return productRepository.save(product);
+    }
+
+    @Override
+    @Transactional
+    public ProductEntity unhideProduct(UUID productId) {
+        ProductEntity product = getProductById(productId);
+        product.setIsActive(true);
+        product.setDeletedAt(null);
+        return productRepository.save(product);
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteProduct(UUID productId) {
+        hideProduct(productId);
     }
 
     @Override
@@ -113,5 +129,12 @@ public class ProductServiceImpl implements ProductService {
         // Rule 23: Sanitize sorting — hanya field dalam whitelist yang diizinkan
         Pageable safePage = ProductRepository.sanitizePageable(pageable);
         return productRepository.findActiveProductsWithFilters(search, categoryId, safePage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductEntity> getAllProductsForAdmin(String search, UUID categoryId, Boolean isActive, Pageable pageable) {
+        Pageable safePage = ProductRepository.sanitizePageable(pageable);
+        return productRepository.findAllProductsForAdmin(search, categoryId, isActive, safePage);
     }
 }

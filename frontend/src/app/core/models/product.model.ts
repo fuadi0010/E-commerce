@@ -13,6 +13,7 @@ export interface Product {
   stock: number;
   imageUrl?: string;
   category: Category;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }

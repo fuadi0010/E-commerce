@@ -59,6 +59,21 @@ export class ProductService {
     return this.http.get<ApiResponse<PageResponse<Product>>>(this.apiUrl, { params: httpParams });
   }
 
+  getAdminProducts(params?: any): Observable<ApiResponse<PageResponse<Product>>> {
+    let httpParams = new HttpParams();
+    if (params) {
+      if (params.page !== undefined) httpParams = httpParams.set('page', params.page);
+      if (params.size !== undefined) httpParams = httpParams.set('size', params.size);
+      if (params.name) httpParams = httpParams.set('search', params.name);
+      if (params.search) httpParams = httpParams.set('search', params.search);
+      if (params.categoryId) httpParams = httpParams.set('categoryId', params.categoryId);
+      if (params.isActive !== undefined && params.isActive !== '') {
+        httpParams = httpParams.set('isActive', params.isActive);
+      }
+    }
+    return this.http.get<ApiResponse<PageResponse<Product>>>(`${this.apiUrl}/admin`, { params: httpParams });
+  }
+
   getProductById(id: string): Observable<ApiResponse<Product>> {
     return this.http.get<ApiResponse<Product>>(`${this.apiUrl}/${id}`);
   }
@@ -75,7 +90,11 @@ export class ProductService {
     return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`);
   }
 
-  hideProduct(id: string): Observable<ApiResponse<void>> {
-    return this.deleteProduct(id);
+  hideProduct(id: string): Observable<ApiResponse<any>> {
+    return this.http.patch<ApiResponse<any>>(`${this.apiUrl}/${id}/hide`, {});
+  }
+
+  unhideProduct(id: string): Observable<ApiResponse<any>> {
+    return this.http.patch<ApiResponse<any>>(`${this.apiUrl}/${id}/unhide`, {});
   }
 }

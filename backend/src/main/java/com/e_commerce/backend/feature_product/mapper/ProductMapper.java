@@ -23,6 +23,7 @@ public class ProductMapper {
                 .stock(entity.getStock())
                 .imageUrl(entity.getImageUrl())
                 .category(toCategoryResponse(entity.getCategory()))
+                .isActive(entity.getIsActive())
                 .build();
     }
 

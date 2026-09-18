@@ -169,34 +169,60 @@ class ProductServiceImplTest {
     }
 
     // ===========================
-    // softDeleteProduct
+    // hideProduct & unhideProduct
     // ===========================
     @Test
-    @DisplayName("softDeleteProduct: Produk berhasil di-soft-delete (deletedAt terisi)")
+    @DisplayName("hideProduct: Produk berhasil disembunyikan (isActive = false, deletedAt terisi)")
+    void hideProduct_Success() {
+        when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
+        when(productRepository.save(any(ProductEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        ProductEntity result = productService.hideProduct(productId);
+        assertFalse(result.getIsActive());
+        assertNotNull(result.getDeletedAt());
+        verify(productRepository, times(1)).save(mockProduct);
+    }
+
+    @Test
+    @DisplayName("unhideProduct: Produk berhasil dimunculkan kembali (isActive = true, deletedAt = null)")
+    void unhideProduct_Success() {
+        mockProduct.setIsActive(false);
+        mockProduct.setDeletedAt(java.time.ZonedDateTime.now());
+        when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
+        when(productRepository.save(any(ProductEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        ProductEntity result = productService.unhideProduct(productId);
+        assertTrue(result.getIsActive());
+        assertNull(result.getDeletedAt());
+        verify(productRepository, times(1)).save(mockProduct);
+    }
+
+    @Test
+    @DisplayName("hideProduct: Produk dengan stok 0 tetap berhasil disembunyikan")
+    void hideProduct_StockZero_Success() {
+        mockProduct.setStock(0);
+        when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
+        when(productRepository.save(any(ProductEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
+
+        ProductEntity result = productService.hideProduct(productId);
+        assertFalse(result.getIsActive());
+        assertEquals(0, result.getStock());
+        verify(productRepository, times(1)).save(mockProduct);
+    }
+
+    @Test
+    @DisplayName("softDeleteProduct: Produk berhasil di-soft-delete (isActive = false)")
     void softDeleteProduct_Success() {
         when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
         when(productRepository.save(any(ProductEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
 
         assertDoesNotThrow(() -> productService.softDeleteProduct(productId));
-        assertNotNull(mockProduct.getDeletedAt());
-        verify(productRepository, times(1)).save(mockProduct);
-    }
-
-    @Test
-    @DisplayName("softDeleteProduct: Produk dengan stok 0 tetap berhasil di-soft-delete")
-    void softDeleteProduct_StockZero_Success() {
-        mockProduct.setStock(0);
-        when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
-        when(productRepository.save(any(ProductEntity.class))).thenAnswer(org.mockito.AdditionalAnswers.returnsFirstArg());
-
-        assertDoesNotThrow(() -> productService.softDeleteProduct(productId));
-        assertNotNull(mockProduct.getDeletedAt());
-        assertEquals(0, mockProduct.getStock());
+        assertFalse(mockProduct.getIsActive());
         verify(productRepository, times(1)).save(mockProduct);
     }
 
     // ===========================
-    // getAllActiveProducts — Pagination
+    // getAllActiveProducts & getAllProductsForAdmin — Pagination
     // ===========================
     @Test
     @DisplayName("getAllActiveProducts: Filter dan pagination berfungsi")
@@ -208,6 +234,22 @@ class ProductServiceImplTest {
                 .thenReturn(expectedPage);
 
         Page<ProductEntity> result = productService.getAllActiveProducts("laptop", categoryId, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(mockProduct, result.getContent().get(0));
+    }
+
+    @Test
+    @DisplayName("getAllProductsForAdmin: Filter isActive dan pagination berfungsi")
+    void getAllProductsForAdmin_WithFilters_ReturnsPage() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<ProductEntity> expectedPage = new PageImpl<>(List.of(mockProduct));
+
+        when(productRepository.findAllProductsForAdmin(eq("laptop"), eq(categoryId), eq(false), any(Pageable.class)))
+                .thenReturn(expectedPage);
+
+        Page<ProductEntity> result = productService.getAllProductsForAdmin("laptop", categoryId, false, pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());

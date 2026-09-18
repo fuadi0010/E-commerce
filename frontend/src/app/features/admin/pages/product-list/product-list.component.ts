@@ -56,10 +56,18 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
           <option *ngFor="let cat of categories" [value]="cat.id">{{ cat.name }}</option>
         </select>
 
+        <!-- Status Filter (Aktif / Disembunyikan) -->
+        <select [(ngModel)]="selectedStatus" (change)="onFilterChange()"
+          class="text-xs border border-slate-200 rounded-xl py-2 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400">
+          <option value="">Semua Status</option>
+          <option value="true">Aktif</option>
+          <option value="false">Disembunyikan</option>
+        </select>
+
         <button (click)="onFilterChange()" class="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-all btn-press">
           Terapkan
         </button>
-        <button *ngIf="searchKeyword || selectedCategory" (click)="resetFilters()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold transition-colors">
+        <button *ngIf="searchKeyword || selectedCategory || selectedStatus" (click)="resetFilters()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold transition-colors">
           Reset Filter
         </button>
 
@@ -105,6 +113,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
               <th scope="col" class="px-6 py-3.5">Kategori</th>
               <th scope="col" class="px-6 py-3.5">Harga</th>
               <th scope="col" class="px-6 py-3.5">Stok</th>
+              <th scope="col" class="px-6 py-3.5">Status</th>
               <th scope="col" class="px-6 py-3.5 text-right">Aksi</th>
             </tr>
           </thead>
@@ -137,12 +146,27 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
                   {{ product.stock > 0 ? product.stock + ' unit' : 'Habis' }}
                 </span>
               </td>
+              <td class="px-6 py-4 whitespace-nowrap text-xs">
+                <span *ngIf="product.isActive !== false"
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Aktif
+                </span>
+                <span *ngIf="product.isActive === false"
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                  Disembunyikan
+                </span>
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-bold space-x-2">
                 <a [routerLink]="['/admin/products/edit', product.id]" class="text-indigo-600 hover:text-indigo-900 px-2.5 py-1 rounded-lg hover:bg-indigo-50 transition-colors">
                   Edit
                 </a>
-                <button (click)="hideProduct(product)" class="text-amber-600 hover:text-amber-800 px-2.5 py-1 rounded-lg hover:bg-amber-50 transition-colors font-semibold" title="Sembunyikan dari etalase pelanggan">
+                <button *ngIf="product.isActive !== false" (click)="hideProduct(product)"
+                  class="text-amber-600 hover:text-amber-800 px-2.5 py-1 rounded-lg hover:bg-amber-50 transition-colors font-semibold" title="Sembunyikan dari etalase pelanggan">
                   Sembunyikan
+                </button>
+                <button *ngIf="product.isActive === false" (click)="unhideProduct(product)"
+                  class="text-emerald-600 hover:text-emerald-900 px-2.5 py-1 rounded-lg hover:bg-emerald-50 transition-colors font-semibold" title="Tampilkan kembali ke etalase pelanggan">
+                  Tampilkan
                 </button>
               </td>
             </tr>
@@ -194,6 +218,7 @@ export class ProductListComponent implements OnInit {
   pageSize = 10;
   searchKeyword = '';
   selectedCategory = '';
+  selectedStatus = '';
 
   ngOnInit() {
     this.loadCategories();
@@ -208,11 +233,12 @@ export class ProductListComponent implements OnInit {
 
   loadProducts() {
     this.isLoading = true;
-    this.productService.getProducts({
+    this.productService.getAdminProducts({
       page: this.currentPage,
       size: this.pageSize,
       name: this.searchKeyword.trim() || undefined,
-      categoryId: this.selectedCategory || undefined
+      categoryId: this.selectedCategory || undefined,
+      isActive: this.selectedStatus !== '' ? this.selectedStatus : undefined
     }).subscribe({
       next: (response) => {
         if (response.data) {
@@ -238,6 +264,7 @@ export class ProductListComponent implements OnInit {
   resetFilters() {
     this.searchKeyword = '';
     this.selectedCategory = '';
+    this.selectedStatus = '';
     this.currentPage = 0;
     this.loadProducts();
   }
@@ -274,6 +301,20 @@ export class ProductListComponent implements OnInit {
         },
         error: () => {
           this.toastService.error('Error', 'Gagal menyembunyikan produk');
+        }
+      });
+    }
+  }
+
+  unhideProduct(product: Product) {
+    if (confirm(`Apakah Anda yakin ingin menampilkan kembali produk "${product.name}" ke etalase pelanggan?`)) {
+      this.productService.unhideProduct(product.id).subscribe({
+        next: () => {
+          this.toastService.success('Sukses', `Produk "${product.name}" berhasil diaktifkan kembali ke katalog aktif.`);
+          this.loadProducts();
+        },
+        error: () => {
+          this.toastService.error('Error', 'Gagal menampilkan produk');
         }
       });
     }

@@ -61,6 +61,19 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Katalog Produk", products));
     }
 
+    // GET /api/products/admin — Admin only (semua produk: aktif maupun disembunyikan)
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getAllProductsForAdmin(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) Boolean isActive,
+            @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
+        Page<ProductResponse> products = productService.getAllProductsForAdmin(search, categoryId, isActive, pageable)
+                .map(productMapper::toResponse);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Daftar produk admin", products));
+    }
+
     // GET /api/products/{id} — Public
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable UUID id) {
@@ -109,8 +122,25 @@ public class ProductController {
     // PATCH /api/products/{id}/hide — Admin only (semantic alias untuk menyembunyikan produk)
     @PatchMapping("/{id}/hide")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> hideProduct(@PathVariable UUID id) {
-        productService.softDeleteProduct(id);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil disembunyikan dari katalog", null));
+    public ResponseEntity<ApiResponse<ProductResponse>> hideProduct(@PathVariable UUID id) {
+        ProductEntity entity = productService.hideProduct(id);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil disembunyikan dari katalog",
+                productMapper.toResponse(entity)));
+    }
+
+    // PATCH /api/products/{id}/unhide — Admin only (mengaktifkan kembali produk)
+    @PatchMapping("/{id}/unhide")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProductResponse>> unhideProduct(@PathVariable UUID id) {
+        ProductEntity entity = productService.unhideProduct(id);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Produk berhasil diaktifkan kembali ke katalog",
+                productMapper.toResponse(entity)));
+    }
+
+    // PATCH /api/products/{id}/show — Admin only (alias unhide)
+    @PatchMapping("/{id}/show")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProductResponse>> showProduct(@PathVariable UUID id) {
+        return unhideProduct(id);
     }
 }

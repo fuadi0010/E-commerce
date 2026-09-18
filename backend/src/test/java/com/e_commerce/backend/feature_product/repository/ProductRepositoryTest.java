@@ -59,4 +59,14 @@ class ProductRepositoryTest {
             assertNotNull(page);
         });
     }
+
+    @Test
+    @DisplayName("findAllProductsForAdmin: retrieves both active and hidden products without error")
+    void testFindAllProductsForAdmin() {
+        Pageable pageable = ProductRepository.sanitizePageable(PageRequest.of(0, 10));
+        assertDoesNotThrow(() -> {
+            Page<ProductEntity> page = productRepository.findAllProductsForAdmin(null, null, null, pageable);
+            assertNotNull(page);
+        });
+    }
 }
